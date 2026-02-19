@@ -1,0 +1,43 @@
+name: Weekly Reddit Cleanup
+
+on:
+  schedule:
+    # Every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  # Allow triggering manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install praw
+
+      - name: Run weekly cleanup (score < 1)
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+        run: python weekly_cleanup.py
+
+      - name: Upload deletion logs as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deletion-logs-${{ github.run_number }}
+          path: |
+            deleted_comments.txt
+            deleted_posts.txt
+          if-no-files-found: ignore
+          retention-days: 90
