@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import datetime
 
 import praw
@@ -9,6 +10,11 @@ app.secret_key = os.urandom(24)
 
 # Log files are kept at the repo root, not inside web/
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Allow importing drive_upload from the repo root
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+from drive_upload import maybe_upload_logs  # noqa: E402
 DELETED_COMMENTS_FILE = os.path.join(BASE_DIR, "deleted_comments.txt")
 DELETED_POSTS_FILE = os.path.join(BASE_DIR, "deleted_posts.txt")
 
@@ -145,7 +151,14 @@ def api_delete():
         except Exception as e:
             errors.append(f"Post {pid}: {e}")
 
-    return jsonify(deleted_comments=deleted_comments, deleted_posts=deleted_posts, errors=errors)
+    drive_links = maybe_upload_logs(DELETED_COMMENTS_FILE, DELETED_POSTS_FILE)
+
+    return jsonify(
+        deleted_comments=deleted_comments,
+        deleted_posts=deleted_posts,
+        errors=errors,
+        drive_links=drive_links,
+    )
 
 
 if __name__ == "__main__":
