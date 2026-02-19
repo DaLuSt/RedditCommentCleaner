@@ -19,19 +19,17 @@ def get_reddit_credentials(credentials_file="Credentials.txt"):
             client_secret = f.readline().strip()
             username = f.readline().strip()
             password = f.readline().strip()
-            validate_on_submit=True
             return client_id, client_secret, username, password
     except FileNotFoundError:
         print("Error: Could not find the credentials file.")
-    
+
     # If file reading fails or file is not found, prompt the user to input credentials manually
     client_id = input("Enter your Reddit client ID: ")
     client_secret = input("Enter your Reddit client secret: ")
     username = input("Enter your Reddit username: ")
     password = input("Enter your Reddit password: ")
-    validate_on_submit=True
 
-    return client_id, client_secret, username, password, validate_on_submit
+    return client_id, client_secret, username, password
 
 def confirm_and_run():
     """
