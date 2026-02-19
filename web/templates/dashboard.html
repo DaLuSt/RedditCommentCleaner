@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RedditCommentCleaner — Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1a1a1b;
+      --surface: #272729;
+      --border: #343536;
+      --text: #d7dadc;
+      --muted: #818384;
+      --accent: #ff4500;
+      --accent-hover: #cc3700;
+      --negative: #ff585b;
+      --low: #ff9900;
+      --positive: #46d160;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 0.875rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { color: var(--accent); font-size: 1.1rem; font-weight: 700; }
+    header .user { display: flex; align-items: center; gap: 0.75rem; color: var(--muted); font-size: 0.8rem; }
+    .btn-logout {
+      padding: 0.3rem 0.75rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: border-color 0.15s;
+    }
+    .btn-logout:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── Sidebar ── */
+    aside {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1.25rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    aside h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.5rem; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #444; }
+    .btn-danger { background: var(--negative); color: #fff; }
+    .btn-danger:hover { background: #c0393b; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .filter-group { display: flex; flex-direction: column; gap: 0.6rem; }
+    .filter-row label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
+    .filter-row input[type="number"] {
+      width: 100%;
+      padding: 0.45rem 0.6rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+    .filter-row input:focus { outline: none; border-color: var(--accent); }
+
+    .select-row { display: flex; gap: 0.4rem; }
+    .select-row .btn { flex: 1; padding: 0.4rem 0.3rem; font-size: 0.75rem; }
+
+    .divider { border: none; border-top: 1px solid var(--border); }
+
+    #delete-btn { margin-top: auto; }
+    .selected-count { text-align: center; font-size: 0.75rem; color: var(--muted); }
+
+    /* ── Main ── */
+    main { display: flex; flex-direction: column; overflow: hidden; }
+
+    .stats-bar {
+      padding: 0.6rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: var(--surface);
+    }
+    .stats-bar span b { color: var(--text); }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 0 1.25rem;
+    }
+    .tab-btn {
+      padding: 0.65rem 1rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    .table-wrap { overflow: auto; flex: 1; padding: 0 1.25rem 1.25rem; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    th:hover { color: var(--text); }
+    th .sort-icon { margin-left: 0.25rem; opacity: 0.4; }
+    th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+    th.no-sort { cursor: default; }
+    td {
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid #2d2d2e;
+      vertical-align: top;
+      max-width: 0;
+    }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    tr.selected td { background: rgba(255,69,0,0.06); }
+
+    td.body { width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; color: var(--muted); }
+    td.score { width: 60px; font-weight: 700; white-space: nowrap; }
+    .score-neg { color: var(--negative); }
+    .score-low { color: var(--low); }
+    .score-pos { color: var(--positive); }
+
+    td a { color: var(--accent); text-decoration: none; font-size: 0.8rem; }
+    td a:hover { text-decoration: underline; }
+    input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Loading overlay ── */
+    #loader {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    #loader.visible { display: flex; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loader p { color: var(--text); font-size: 0.9rem; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem 1.25rem;
+      font-size: 0.875rem;
+      transition: transform 0.25s ease;
+      z-index: 300;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: var(--positive); color: var(--positive); }
+    #toast.error { border-color: var(--negative); color: var(--negative); }
+
+    .empty { padding: 3rem; text-align: center; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Reddit Comment Cleaner</h1>
+  <div class="user">
+    <span>u/{{ username }}</span>
+    <a href="/logout"><button class="btn-logout">Log out</button></a>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside>
+    <div>
+      <h2>Data</h2>
+      <button class="btn btn-primary" onclick="loadItems()">Load Items</button>
+    </div>
+
+    <hr class="divider">
+
+    <div>
+      <h2>Filters</h2>
+      <div class="filter-group">
+        <div class="filter-row">
+          <label>Score &le;</label>
+          <input type="number" id="f-score" value="0">
+        </div>
+        <div class="filter-row">
+          <label>Age &ge; (days)</label>
+          <input type="number" id="f-age" value="0" min="0">
+        </div>
+      </div>
+      <br>
+      <button class="btn btn-secondary" onclick="applyFilter()">Select Matching</button>
+    </div>
+
+    <hr class="divider">
+
+    <div>
+      <h2>Selection</h2>
+      <div class="select-row">
+        <button class="btn btn-secondary" onclick="selectAll()">All</button>
+        <button class="btn btn-secondary" onclick="deselectAll()">None</button>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div>
+      <p class="selected-count" id="sel-count">0 items selected</p>
+      <br>
+      <button class="btn btn-danger" id="delete-btn" disabled onclick="deleteSelected()">
+        Delete Selected
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main>
+    <div class="stats-bar">
+      <span>Comments: <b id="stat-comments">—</b></span>
+      <span>Posts: <b id="stat-posts">—</b></span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('comments', this)">Comments</button>
+      <button class="tab-btn" onclick="showTab('posts', this)">Posts</button>
+    </div>
+
+    <div class="table-wrap">
+      <!-- Comments tab -->
+      <div id="tab-comments" class="tab-panel active">
+        <table id="tbl-comments">
+          <thead>
+            <tr>
+              <th class="no-sort"><input type="checkbox" id="cb-all-comments" onchange="toggleAllComments(this)"></th>
+              <th onclick="sortTable('comments','created_utc')">Date <span class="sort-icon">↕</span></th>
+              <th onclick="sortTable('comments','subreddit')">Subreddit <span class="sort-icon">↕</span></th>
+              <th onclick="sortTable('comments','score')">Score <span class="sort-icon">↕</span></th>
+              <th class="no-sort">Content</th>
+              <th class="no-sort">Link</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-comments">
+            <tr><td colspan="6" class="empty">Click "Load Items" to fetch your Reddit history.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Posts tab -->
+      <div id="tab-posts" class="tab-panel">
+        <table id="tbl-posts">
+          <thead>
+            <tr>
+              <th class="no-sort"><input type="checkbox" id="cb-all-posts" onchange="toggleAllPosts(this)"></th>
+              <th onclick="sortTable('posts','created_utc')">Date <span class="sort-icon">↕</span></th>
+              <th onclick="sortTable('posts','subreddit')">Subreddit <span class="sort-icon">↕</span></th>
+              <th onclick="sortTable('posts','score')">Score <span class="sort-icon">↕</span></th>
+              <th class="no-sort">Title</th>
+              <th onclick="sortTable('posts','num_comments')">Replies <span class="sort-icon">↕</span></th>
+              <th class="no-sort">Link</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-posts">
+            <tr><td colspan="7" class="empty">Click "Load Items" to fetch your Reddit history.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Loading overlay -->
+<div id="loader">
+  <div class="spinner"></div>
+  <p id="loader-msg">Loading…</p>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<script>
+  let state = {
+    comments: [],
+    posts: [],
+    selected: new Set(),
+    sortCol: { comments: 'created_utc', posts: 'created_utc' },
+    sortDir: { comments: -1, posts: -1 },  // -1 = desc (newest first)
+  };
+
+  // ── Data loading ─────────────────────────────────────────────────────────
+
+  async function loadItems() {
+    setLoader(true, 'Fetching your Reddit history…');
+    try {
+      const res = await fetch('/api/items');
+      if (res.status === 401) { location.href = '/'; return; }
+      const data = await res.json();
+      state.comments = data.comments;
+      state.posts = data.posts;
+      state.selected.clear();
+      renderTable('comments');
+      renderTable('posts');
+      updateStats();
+      toast('success', `Loaded ${data.comments.length} comments and ${data.posts.length} posts.`);
+    } catch (e) {
+      toast('error', 'Failed to load items: ' + e.message);
+    } finally {
+      setLoader(false);
+    }
+  }
+
+  // ── Rendering ────────────────────────────────────────────────────────────
+
+  function renderTable(type) {
+    const items = sorted(type);
+    const tbody = document.getElementById('tbody-' + type);
+    tbody.innerHTML = '';
+
+    if (items.length === 0) {
+      const cols = type === 'comments' ? 6 : 7;
+      tbody.innerHTML = `<tr><td colspan="${cols}" class="empty">No ${type} found.</td></tr>`;
+      return;
+    }
+
+    items.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.dataset.id = item.id;
+      if (state.selected.has(item.id)) tr.classList.add('selected');
+
+      const scoreClass = item.score < 0 ? 'score-neg' : item.score <= 1 ? 'score-low' : 'score-pos';
+      const content = type === 'comments'
+        ? esc(item.body)
+        : esc(item.title);
+      const extraCols = type === 'posts'
+        ? `<td>${item.num_comments}</td>`
+        : '';
+
+      tr.innerHTML = `
+        <td><input type="checkbox" class="row-cb" data-id="${item.id}" data-type="${type}"
+            ${state.selected.has(item.id) ? 'checked' : ''}
+            onchange="toggleRow(this)"></td>
+        <td style="white-space:nowrap">${item.created_date}</td>
+        <td style="white-space:nowrap">r/${esc(item.subreddit)}</td>
+        <td class="score ${scoreClass}">${item.score}</td>
+        <td class="body" title="${esc(item.body || item.title)}">${content}</td>
+        ${extraCols}
+        <td><a href="${item.permalink}" target="_blank" rel="noopener">↗ view</a></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function sorted(type) {
+    const col = state.sortCol[type];
+    const dir = state.sortDir[type];
+    return [...state[type]].sort((a, b) => {
+      const av = a[col], bv = b[col];
+      if (typeof av === 'string') return dir * av.localeCompare(bv);
+      return dir * (av - bv);
+    });
+  }
+
+  // ── Sorting ──────────────────────────────────────────────────────────────
+
+  function sortTable(type, col) {
+    if (state.sortCol[type] === col) {
+      state.sortDir[type] *= -1;
+    } else {
+      state.sortCol[type] = col;
+      state.sortDir[type] = -1;
+    }
+    // Update header indicators
+    const tableId = 'tbl-' + type;
+    document.querySelectorAll(`#${tableId} th`).forEach(th => {
+      th.classList.remove('sorted');
+      const icon = th.querySelector('.sort-icon');
+      if (icon) icon.textContent = '↕';
+    });
+    const ths = document.querySelectorAll(`#${tableId} th`);
+    ths.forEach(th => {
+      if (th.getAttribute('onclick') && th.getAttribute('onclick').includes(`'${col}'`)) {
+        th.classList.add('sorted');
+        const icon = th.querySelector('.sort-icon');
+        if (icon) icon.textContent = state.sortDir[type] === 1 ? '↑' : '↓';
+      }
+    });
+    renderTable(type);
+  }
+
+  // ── Selection ────────────────────────────────────────────────────────────
+
+  function toggleRow(cb) {
+    const id = cb.dataset.id;
+    if (cb.checked) {
+      state.selected.add(id);
+      cb.closest('tr').classList.add('selected');
+    } else {
+      state.selected.delete(id);
+      cb.closest('tr').classList.remove('selected');
+    }
+    updateStats();
+  }
+
+  function toggleAllComments(masterCb) {
+    sorted('comments').forEach(item => {
+      if (masterCb.checked) state.selected.add(item.id);
+      else state.selected.delete(item.id);
+    });
+    renderTable('comments');
+    updateStats();
+  }
+
+  function toggleAllPosts(masterCb) {
+    sorted('posts').forEach(item => {
+      if (masterCb.checked) state.selected.add(item.id);
+      else state.selected.delete(item.id);
+    });
+    renderTable('posts');
+    updateStats();
+  }
+
+  function selectAll() {
+    [...state.comments, ...state.posts].forEach(item => state.selected.add(item.id));
+    renderTable('comments');
+    renderTable('posts');
+    updateStats();
+  }
+
+  function deselectAll() {
+    state.selected.clear();
+    renderTable('comments');
+    renderTable('posts');
+    updateStats();
+  }
+
+  function applyFilter() {
+    const maxScore = parseInt(document.getElementById('f-score').value, 10);
+    const minAgeDays = parseInt(document.getElementById('f-age').value, 10) || 0;
+    const cutoffUtc = Date.now() / 1000 - minAgeDays * 86400;
+
+    const allItems = [...state.comments, ...state.posts];
+    let matched = 0;
+    allItems.forEach(item => {
+      if (item.score <= maxScore && item.created_utc < cutoffUtc) {
+        state.selected.add(item.id);
+        matched++;
+      }
+    });
+    renderTable('comments');
+    renderTable('posts');
+    updateStats();
+    toast('success', `Selected ${matched} item(s) matching the filter.`);
+  }
+
+  // ── Deletion ─────────────────────────────────────────────────────────────
+
+  async function deleteSelected() {
+    const commentIds = state.comments.filter(c => state.selected.has(c.id)).map(c => c.id);
+    const postIds = state.posts.filter(p => state.selected.has(p.id)).map(p => p.id);
+    const total = commentIds.length + postIds.length;
+
+    if (total === 0) return;
+    if (!confirm(
+      `You are about to permanently delete:\n` +
+      `  • ${commentIds.length} comment(s)\n` +
+      `  • ${postIds.length} post(s)\n\n` +
+      `Each item will be overwritten with "." before deletion.\n` +
+      `This cannot be undone. Continue?`
+    )) return;
+
+    setLoader(true, `Deleting ${total} item(s)…`);
+    try {
+      const res = await fetch('/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment_ids: commentIds, post_ids: postIds }),
+      });
+      if (res.status === 401) { location.href = '/'; return; }
+      const result = await res.json();
+
+      // Remove deleted items from state
+      state.comments = state.comments.filter(c => !commentIds.includes(c.id));
+      state.posts = state.posts.filter(p => !postIds.includes(p.id));
+      state.selected.clear();
+
+      renderTable('comments');
+      renderTable('posts');
+      updateStats();
+
+      let msg = `Deleted ${result.deleted_comments} comment(s) and ${result.deleted_posts} post(s).`;
+      if (result.errors && result.errors.length > 0) {
+        msg += ` ${result.errors.length} error(s) — check console.`;
+        console.error('Deletion errors:', result.errors);
+      }
+      toast(result.errors && result.errors.length ? 'error' : 'success', msg);
+    } catch (e) {
+      toast('error', 'Delete failed: ' + e.message);
+    } finally {
+      setLoader(false);
+    }
+  }
+
+  // ── UI helpers ───────────────────────────────────────────────────────────
+
+  function updateStats() {
+    document.getElementById('stat-comments').textContent = state.comments.length;
+    document.getElementById('stat-posts').textContent = state.posts.length;
+    const n = state.selected.size;
+    document.getElementById('sel-count').textContent = `${n} item${n !== 1 ? 's' : ''} selected`;
+    document.getElementById('delete-btn').disabled = n === 0;
+  }
+
+  function showTab(type, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + type).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function setLoader(visible, msg) {
+    const el = document.getElementById('loader');
+    el.classList.toggle('visible', visible);
+    if (msg) document.getElementById('loader-msg').textContent = msg;
+  }
+
+  let toastTimer;
+  function toast(type, msg) {
+    const el = document.getElementById('toast');
+    el.className = `show ${type}`;
+    el.textContent = msg;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+  }
+
+  function esc(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Initialise stats on page load
+  updateStats();
+</script>
+</body>
+</html>

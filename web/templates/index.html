@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RedditCommentCleaner — Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a1b;
+      color: #d7dadc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #272729;
+      border: 1px solid #343536;
+      border-radius: 8px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 420px;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 1.75rem;
+    }
+    .logo h1 { color: #ff4500; font-size: 1.5rem; }
+    .logo p { color: #818384; font-size: 0.875rem; margin-top: 0.35rem; }
+    .error {
+      background: rgba(255,88,91,0.1);
+      border: 1px solid #ff585b;
+      color: #ff585b;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    .field { margin-top: 1rem; }
+    label {
+      display: block;
+      font-size: 0.75rem;
+      color: #818384;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.3rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      background: #1a1a1b;
+      border: 1px solid #343536;
+      border-radius: 4px;
+      color: #d7dadc;
+      font-size: 0.9rem;
+      transition: border-color 0.15s;
+    }
+    input:focus { outline: none; border-color: #ff4500; }
+    button[type="submit"] {
+      width: 100%;
+      padding: 0.7rem;
+      background: #ff4500;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 1.5rem;
+      transition: background 0.15s;
+    }
+    button[type="submit"]:hover { background: #cc3700; }
+    .help {
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      color: #818384;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .help a { color: #ff4500; text-decoration: none; }
+    .help a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <h1>Reddit Comment Cleaner</h1>
+      <p>Browse and selectively delete your Reddit history</p>
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+      <div class="field">
+        <label for="client_id">Client ID</label>
+        <input type="text" id="client_id" name="client_id" required autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="client_secret">Client Secret</label>
+        <input type="password" id="client_secret" name="client_secret" required>
+      </div>
+      <div class="field">
+        <label for="username">Reddit Username</label>
+        <input type="text" id="username" name="username" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="password">Reddit Password</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password">
+      </div>
+      <button type="submit">Sign In</button>
+    </form>
+
+    <p class="help">
+      Need API credentials?<br>
+      <a href="https://www.reddit.com/prefs/apps" target="_blank" rel="noopener">
+        Create a script-type app on Reddit
+      </a>
+    </p>
+  </div>
+</body>
+</html>
