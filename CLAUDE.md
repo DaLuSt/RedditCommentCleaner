@@ -11,7 +11,7 @@ It ships in three forms:
 
 **Current version:** 1.8
 **Language:** Python 3
-**Dependencies:** `praw` (CLI/CI), `praw` + `flask` (web app)
+**Dependencies:** `praw` (CLI/CI), `praw` + `flask` + `google-api-python-client` (web app)
 
 ---
 
@@ -51,12 +51,12 @@ RedditCommentCleaner/
 
 ### CLI scripts (`commentCleaner.py`, `PostCleaner.py`, `weekly_cleanup.py`)
 ```bash
-pip install praw
+pip install -r requirements.txt   # praw + google-api-python-client
 ```
 
 ### Web app (`web/`)
 ```bash
-pip install -r web/requirements.txt   # installs flask and praw
+pip install -r web/requirements.txt   # flask + praw + google-api-python-client
 ```
 
 No `pyproject.toml`, Poetry, or Pipenv files exist.
@@ -78,6 +78,14 @@ If absent, both CLI scripts fall back to interactive `input()` prompts.
 ### For the web app
 Credentials are entered via the login form and stored in a server-side Flask session for the duration of the browser session. They are never written to disk.
 
+### For the web app (local)
+Set as environment variables before running Flask:
+```bash
+export GOOGLE_SERVICE_ACCOUNT_KEY=/path/to/key.json   # or paste raw JSON
+export GOOGLE_DRIVE_FOLDER_ID=<folder-id>
+python web/app.py
+```
+
 ### For GitHub Actions
 Store as repository secrets (Settings → Secrets and variables → Actions):
 
@@ -87,6 +95,8 @@ Store as repository secrets (Settings → Secrets and variables → Actions):
 | `REDDIT_CLIENT_SECRET` | Your script app client secret |
 | `REDDIT_USERNAME` | Your Reddit username |
 | `REDDIT_PASSWORD` | Your Reddit password |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Raw JSON content of service account key *(optional)* |
+| `GOOGLE_DRIVE_FOLDER_ID` | Drive folder ID *(optional)* |
 
 ---
 
@@ -150,6 +160,38 @@ python web/app.py
 - `web/app.py` uses `os.path.dirname(__file__)` to locate the repo root, so log files are always written to the repo root regardless of which directory you run Flask from.
 - Credentials are kept in a Flask session (server-side) and never sent to the browser.
 - All PRAW calls are synchronous. For accounts with thousands of items, the initial `/api/items` request may take 30–60 seconds.
+
+---
+
+## Google Drive Integration
+
+**Module:** `drive_upload.py`
+
+All three entry points (CLI, web app, CI) call `maybe_upload_logs()` after writing deletion logs. The function is a no-op when the env vars are not set, so Drive is fully opt-in.
+
+### Setup (one-time)
+
+1. Open [Google Cloud Console](https://console.cloud.google.com) and create or select a project.
+2. Enable the **Google Drive API** (APIs & Services → Library).
+3. Create a **Service Account** (IAM & Admin → Service Accounts → Create).
+4. On the service account, go to **Keys → Add Key → JSON** and download the file.
+5. In Google Drive, create a folder and share it with the service account's email address (grant **Editor** access).
+6. Copy the folder ID from the URL: `https://drive.google.com/drive/folders/<FOLDER_ID>`
+
+### Environment variables
+
+| Variable | Value |
+|---|---|
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Path to JSON key file **or** the raw JSON string |
+| `GOOGLE_DRIVE_FOLDER_ID` | The Drive folder ID |
+
+If both variables are set, logs are uploaded (or updated in-place) after every deletion run. If either is missing, the upload step is silently skipped.
+
+### Behaviour
+
+- `deleted_comments.txt` and `deleted_posts.txt` are uploaded to the configured folder.
+- If a file with the same name already exists in that folder it is **updated in-place** (no duplicates).
+- The web dashboard shows clickable Drive links for 12 seconds after a successful deletion.
 
 ---
 

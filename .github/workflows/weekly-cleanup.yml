@@ -21,7 +21,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
-        run: pip install praw
+        run: pip install -r requirements.txt
 
       - name: Run weekly cleanup (score < 1)
         env:
@@ -29,6 +29,9 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          # Optional — omit these two secrets to skip Drive upload
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
         run: python weekly_cleanup.py
 
       - name: Upload deletion logs as artifacts

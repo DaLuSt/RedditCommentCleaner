@@ -2,6 +2,8 @@ import praw
 import time
 from datetime import datetime, timedelta
 
+from drive_upload import maybe_upload_logs
+
 def get_reddit_credentials(credentials_file="Credentials.txt"):
     """
     Prompt the user to input Reddit client credentials.
@@ -205,6 +207,7 @@ def main():
 
         if len(comments_deleted) > 0:
             print("The script ran successfully and deleted {} comments.".format(len(comments_deleted)))
+            maybe_upload_logs("deleted_comments.txt")
             comments_deleted = []
         else:
             print("There were no comments to delete.")

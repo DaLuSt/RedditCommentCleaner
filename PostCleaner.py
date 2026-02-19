@@ -2,6 +2,8 @@ import praw
 import time
 from datetime import datetime
 
+from drive_upload import maybe_upload_logs
+
 
 def get_reddit_credentials(credentials_file="Credentials.txt"):
     """
@@ -129,6 +131,7 @@ def main():
     days_old = get_days_old()
     posts_deleted = 0
     delete_old_posts(reddit, username, days_old, posts_deleted)
+    maybe_upload_logs("deleted_posts.txt")
 
 
 if __name__ == "__main__":
