@@ -1,0 +1,15 @@
+# User credentials — must never be committed
+Credentials.txt
+
+# Runtime-generated deletion logs
+deleted_comments.txt
+deleted_posts.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Flask session / instance folder
+instance/
+flask_session/
