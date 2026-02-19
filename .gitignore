@@ -9,3 +9,7 @@ deleted_posts.txt
 __pycache__/
 *.py[cod]
 *.pyo
+
+# Flask session / instance folder
+instance/
+flask_session/
