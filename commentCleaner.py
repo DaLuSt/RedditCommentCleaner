@@ -155,6 +155,8 @@ def remove_comments_with_one_karma_and_no_replies(reddit, username, comments_del
     one_week_ago = datetime.utcnow() - timedelta(days=7)
 
     for comment in reddit.redditor(username).comments.new(limit=None):
+        # comment.replies is not populated by default; refresh() fetches the full thread
+        comment.refresh()
         # Check if the comment meets the criteria
         if comment.score <= 1 and len(comment.replies) == 0 and datetime.utcfromtimestamp(comment.created_utc) < one_week_ago:
             # Format the date of the comment
