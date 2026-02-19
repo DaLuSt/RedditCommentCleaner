@@ -101,20 +101,17 @@ def delete_old_posts(reddit, username, days_old, posts_deleted):
     """
     for submission in reddit.redditor(username).submissions.new(limit=None):
         if submission.created_utc < (time.time() - (days_old * 86400)):
-            submission.delete()
-            posts_deleted += 1
-            print(f"Deleted post: {submission.title}")
             # save post title, date, karma, and subreddit deleted to a file with utf-8 encoding
             with open("deleted_posts.txt", "a", encoding="utf-8") as f:
                 f.write(f"{submission.title}, {datetime.utcfromtimestamp(submission.created_utc)}, {submission.score}, {submission.subreddit.display_name}\n")
             try:
                 submission.edit(".")
                 submission.delete()
-                submission.append(submission)
-                
+                posts_deleted += 1
+                print(f"Deleted post: {submission.title}")
             except praw.exceptions.APIException as e:
-                print(f"Error removing comment: {e}")
-                
+                print(f"Error removing post: {e}")
+
     print(f"Deleted {posts_deleted} posts.")
 
         
