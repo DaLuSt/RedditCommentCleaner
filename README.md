@@ -1,90 +1,163 @@
-# Reddit Comment Cleaner v1.8
+# RedditCommentCleaner v1.8
 
-This Python script edits any Reddit comments older than x amount of days to "." and then deletes them.
+Bulk-delete your Reddit comments and posts. Each item is edited to `"."` before deletion to prevent content-scraping tools from capturing the original text.
 
+Available in three forms:
 
-**-SYSTEM CONFIGURATION-**
+| Mode | Description |
+|------|-------------|
+| **CLI** | Interactive terminal scripts (`commentCleaner.py`, `PostCleaner.py`) |
+| **Web app** | Browser dashboard — filter, select, and delete items visually |
+| **CI/CD** | Automated weekly GitHub Actions run (score < 1, or score == 1 + older than 14 days) |
 
-1. Install Python 3. 
+---
 
-2. Install praw by running the following code in terminal:
+## Requirements
 
-```
-pip install praw
-```
+- Python 3
+- `praw` (CLI / CI):  `pip install praw`
+- `flask` + `praw` (web app):  `pip install -r web/requirements.txt`
+- `google-api-python-client` etc. (Google Drive, optional):  `pip install -r requirements.txt`
 
+---
 
-**-REDDIT CONFIGURATION-**
+## Reddit API setup
 
-1. Navigate to https://www.reddit.com/prefs/apps
+1. Go to <https://www.reddit.com/prefs/apps>
+2. Click **Create application** → select **script**
+3. Fill in a name, description, and any URL (e.g. this repo) for the redirect fields
+4. Click **Create app** — note the **client ID** (under the app name) and **client secret**
 
-2. Click "Create application" at the bottom of the page
+![Reddit app credentials](https://user-images.githubusercontent.com/130249301/234361938-e09c0f87-e6b8-4b6b-9916-593b4bbcf35d.png)
 
-3. Select "script"
+---
 
-4. Fill out the discription, and both URL and URI fields (you can point both fields to this Github page)
+## CLI scripts
 
-5. Click 'create app'
+### `commentCleaner.py` — delete comments
 
-![image](https://user-images.githubusercontent.com/130249301/234336730-dbe61b3f-ffed-4f1f-ab35-b5fe1239d72c.png)
-
-
-**-SCRIPT CONFIGURATION-**
-
-Once your app is created, you will see your client ID, and secret. Both are highlighted below:
-
-![image](https://user-images.githubusercontent.com/130249301/234361938-e09c0f87-e6b8-4b6b-9916-593b4bbcf35d.png)
-
-1. When the script is executed, you will be prompted to enter your Client ID, secret, username and password.
-
-2. The last prompt will ask you how old the comments should be that are being deleted. For example, if you enter "4", all comments older than 4 days old will be deleted.
-
-
-
-
--RUNNING THE SCRIPT-
-
-1. Copy commentCleaner.py code into notepad and save it in whatevery directory you prefer as commentCleaner.py, alternatively you can copy the repository using the following command in Windows terminal:
-
-```
-git clone https://github.com/905timur/RedditCommentCleaner.git
-```
-
-2. In Windows terminal, navigate to wherever you saved the commentCleaner.py by using the "cd" command, for example:
-
-```
-cd C:\commentCleaner
-```
-
-3. Once in the same directory as commentCleaner.py, run the following command:
-
-```
+```bash
 python commentCleaner.py
 ```
 
-4. Fill out all the prompts. 
+If `Credentials.txt` is present in the same directory it is read automatically; otherwise you are prompted. The file must contain exactly four lines:
 
 ```
-Do you want to run the script? (yes/no): 
+<client_id>
+<client_secret>
+<username>
+<password>
 ```
 
-```
-Credentials
-- client_id
-- client_secret
-- username
-- password
+**Deletion modes:**
+
+| Option | Criteria |
+|--------|----------|
+| 1 | All comments older than N days |
+| 2 | All comments with score ≤ 0 |
+| 3 | Score ≤ 1, no replies, older than 7 days |
+
+Each deleted comment is appended to `deleted_comments.txt` (`YYYY-MM-DD HH:MM:SS | score | body`).
+
+---
+
+### `PostCleaner.py` — delete posts
+
+```bash
+python PostCleaner.py
 ```
 
+Same credential handling as above. Prompts for an age threshold and deletes all posts older than that many days. Logs to `deleted_posts.txt`.
+
+---
+
+## Web app
+
+```bash
+pip install -r web/requirements.txt
+python web/app.py
+# Open http://localhost:5000
 ```
-Run options
-1. Remove all comments older than x days
-2. Remove comments with negative karma
-3. Remove comments with 1 karma and no replies
-4. Quit
+
+1. Log in with your Reddit API credentials (never written to disk)
+2. Click **Load Items** to fetch all your comments and posts
+3. Use the **filter panel** (score ≤ N, age ≥ N days) or tick items manually
+4. Click **Delete Selected** — deleted rows disappear from the table in-place
+
+Logs are written to `deleted_comments.txt` / `deleted_posts.txt` in the repo root.
+
+---
+
+## Weekly automated cleanup (GitHub Actions)
+
+The workflow at `.github/workflows/weekly-cleanup.yml` runs every **Sunday at 00:00 UTC** and can also be triggered manually from the **Actions** tab.
+
+**Deletion criteria (either condition triggers deletion):**
+- `score < 1` (any age)
+- `score == 1` AND older than 14 days
+
+### Setup
+
+Add these secrets in **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+|--------|-------|
+| `REDDIT_CLIENT_ID` | Your script app client ID |
+| `REDDIT_CLIENT_SECRET` | Your script app client secret |
+| `REDDIT_USERNAME` | Your Reddit username |
+| `REDDIT_PASSWORD` | Your Reddit password |
+
+### Running locally
+
+`weekly_cleanup.py` also reads from `Credentials.txt` as a fallback when env vars are absent, so you can run it locally the same way as the other CLI scripts:
+
+```bash
+python weekly_cleanup.py
 ```
 
-5. Once you have filled out all the prompts, the script will run and delete all comments in the selected category. It will return a txt file with all the comments that were deleted.
+---
 
-For further suggestions or questions, please contact me or open an issue on this repository.
+## Google Drive log upload (optional)
 
+After each cleanup run (CI or local), deletion logs can be automatically uploaded to a Google Drive folder.
+
+### Setup
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) → create or select a project
+2. Enable the **Google Drive API** (APIs & Services → Library)
+3. Create a **Service Account** (IAM & Admin → Service Accounts → Create)
+4. Generate a **JSON key** for the service account (Keys tab → Add Key → JSON) — download the file
+5. In Google Drive, create a folder, share it with the service account email (give **Editor** access), and copy the folder ID from the URL:
+   `https://drive.google.com/drive/folders/`**`<FOLDER_ID>`**
+
+### For GitHub Actions
+
+Add two more repository secrets:
+
+| Secret | Value |
+|--------|-------|
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Full contents of the downloaded JSON key file |
+| `GOOGLE_DRIVE_FOLDER_ID` | The folder ID from the Drive URL |
+
+If either secret is absent the workflow still runs — Drive upload is silently skipped and a message is printed in the log.
+
+### For local runs
+
+Set the same two values as environment variables:
+
+```bash
+export GOOGLE_SERVICE_ACCOUNT_KEY=/path/to/key.json   # or raw JSON string
+export GOOGLE_DRIVE_FOLDER_ID=your_folder_id
+python weekly_cleanup.py
+```
+
+---
+
+## Output files
+
+| File | Created by | Format |
+|------|-----------|--------|
+| `deleted_comments.txt` | all scripts | `YYYY-MM-DD HH:MM:SS \| score \| body` |
+| `deleted_posts.txt` | all scripts | `title, datetime, score, subreddit` |
+
+Both files are excluded from git (`.gitignore`) and uploaded as GitHub Actions artifacts (retained 90 days) in addition to the optional Drive upload.
