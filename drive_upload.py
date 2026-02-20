@@ -119,6 +119,7 @@ def maybe_upload_logs(*file_paths: str) -> list:
     """
     folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
     if not folder_id or not os.environ.get("GOOGLE_SERVICE_ACCOUNT_KEY", ""):
+        print("Google Drive upload skipped: GOOGLE_SERVICE_ACCOUNT_KEY or GOOGLE_DRIVE_FOLDER_ID not set.")
         return []
     try:
         return upload_logs(folder_id, *file_paths)
