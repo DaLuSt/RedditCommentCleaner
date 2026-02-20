@@ -89,7 +89,7 @@ def get_days_old():
             print("Error: Please enter a number.")
 
 
-def delete_old_posts(reddit, username, days_old, posts_deleted):
+def delete_old_posts(reddit, username, days_old):
     """
     Delete posts older than a specified number of days.
 
@@ -97,8 +97,11 @@ def delete_old_posts(reddit, username, days_old, posts_deleted):
         reddit (praw.Reddit): An authenticated Reddit instance.
         username (str): Reddit username.
         days_old (int): The age limit for posts.
-        posts_deleted (int): The number of posts deleted.
+
+    Returns:
+        int: The number of posts successfully deleted.
     """
+    posts_deleted = 0
     for submission in reddit.redditor(username).submissions.new(limit=None):
         if submission.created_utc < (time.time() - (days_old * 86400)):
             # save post title, date, karma, and subreddit deleted to a file with utf-8 encoding
@@ -113,6 +116,7 @@ def delete_old_posts(reddit, username, days_old, posts_deleted):
                 print(f"Error removing post: {e}")
 
     print(f"Deleted {posts_deleted} posts.")
+    return posts_deleted
 
         
 def main():
@@ -124,8 +128,7 @@ def main():
 
     reddit = initialize_reddit(client_id, client_secret, username, password)
     days_old = get_days_old()
-    posts_deleted = 0
-    delete_old_posts(reddit, username, days_old, posts_deleted)
+    delete_old_posts(reddit, username, days_old)
     maybe_upload_logs("deleted_posts.txt")
 
 
