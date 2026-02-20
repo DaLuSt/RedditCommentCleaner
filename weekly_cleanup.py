@@ -17,11 +17,34 @@ Optional environment variables (Google Drive upload):
 """
 
 import os
+import time
 from datetime import datetime, timezone
 
 import praw
+import prawcore
 
 from drive_upload import maybe_upload_logs
+
+_RETRY_WAIT = (5, 15, 45)  # seconds between successive retries
+
+
+def _with_retry(fn, label="operation"):
+    """Call fn(), retrying up to 3 times on rate-limit errors.
+
+    Args:
+        fn: Zero-argument callable to invoke.
+        label: Human-readable description for log messages.
+    """
+    for attempt, wait in enumerate(_RETRY_WAIT, start=1):
+        try:
+            return fn()
+        except prawcore.exceptions.TooManyRequests as exc:
+            retry_after = getattr(exc, "retry_after", None) or wait
+            print(f"  Rate limited on {label}. Waiting {retry_after}s (attempt {attempt}/3)…")
+            time.sleep(retry_after)
+        except praw.exceptions.APIException:
+            raise
+    return fn()  # final attempt — let exceptions propagate
 
 AGE_THRESHOLD_DAYS = 14
 
@@ -42,7 +65,7 @@ def _load_credentials():
     cred_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Credentials.txt")
     if os.path.exists(cred_path):
         with open(cred_path, encoding="utf-8") as f:
-            lines = [l.strip() for l in f.readlines()]
+            lines = [line.strip() for line in f.readlines()]
         if len(lines) >= 4:
             return lines[0], lines[1], lines[2], lines[3]
 
@@ -83,11 +106,11 @@ def main():
             with open("deleted_comments.txt", "a", encoding="utf-8") as f:
                 f.write(f"{date_str} | {comment.score} | {comment.body}\n")
             try:
-                comment.edit(".")
-                comment.delete()
+                _with_retry(lambda: comment.edit("."), "comment edit")
+                _with_retry(comment.delete, "comment delete")
                 comments_deleted += 1
                 print(f"  Deleted comment (score={comment.score}) in r/{comment.subreddit}")
-            except praw.exceptions.APIException as e:
+            except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"  Error deleting comment {comment.id}: {e}")
 
     # ── Posts ─────────────────────────────────────────────────────────────
@@ -103,11 +126,11 @@ def main():
                     f"{submission.subreddit.display_name}\n"
                 )
             try:
-                submission.edit(".")
-                submission.delete()
+                _with_retry(lambda: submission.edit("."), "post edit")
+                _with_retry(submission.delete, "post delete")
                 posts_deleted += 1
                 print(f"  Deleted post '{submission.title}' (score={submission.score}) in r/{submission.subreddit}")
-            except praw.exceptions.APIException as e:
+            except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"  Error deleting post {submission.id}: {e}")
 
     print(f"\nDone. Deleted {comments_deleted} comment(s) and {posts_deleted} post(s).")

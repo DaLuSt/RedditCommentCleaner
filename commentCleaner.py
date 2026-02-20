@@ -1,8 +1,26 @@
 import praw
+import prawcore
 import time
 from datetime import datetime, timedelta
 
 from drive_upload import maybe_upload_logs
+
+_RETRY_WAIT = (5, 15, 45)
+
+
+def _with_retry(fn, label="operation"):
+    """Call fn(), retrying up to 3 times on rate-limit errors."""
+    for attempt, wait in enumerate(_RETRY_WAIT, start=1):
+        try:
+            return fn()
+        except prawcore.exceptions.TooManyRequests as exc:
+            retry_after = getattr(exc, "retry_after", None) or wait
+            print(f"  Rate limited on {label}. Waiting {retry_after}s (attempt {attempt}/3)…")
+            time.sleep(retry_after)
+        except praw.exceptions.APIException:
+            raise
+    return fn()
+
 
 def get_reddit_credentials(credentials_file="Credentials.txt"):
     """
@@ -83,7 +101,7 @@ def initialize_reddit(client_id, client_secret, username, password):
         reddit.user.me()
         print("Authenticated successfully.")
         return reddit
-    except praw.exceptions.APIException as e:
+    except praw.exceptions.APIException:
         print("Error: Could not authenticate with the provided credentials.")
         exit()
 
@@ -107,10 +125,10 @@ def delete_old_comments(reddit, username, days_old, comments_deleted):
                 # Write the date, karma score, and comment body to the file
                 f.write(f"{comment_date} | {comment.score} | {comment.body}\n")
             try:
-                comment.edit(".")
-                comment.delete()
+                _with_retry(lambda: comment.edit("."), "comment edit")
+                _with_retry(comment.delete, "comment delete")
                 comments_deleted.append(comment)
-            except praw.exceptions.APIException as e:
+            except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"Error deleting comment: {e}")
 
 
@@ -133,13 +151,13 @@ def remove_comments_with_negative_karma(reddit, username, comments_deleted):
                 # Write the date, karma score, and comment body to the file
                 f.write(f"{comment_date} | {comment.score} | {comment.body}\n")
             try:
-                comment.edit(".")
-                comment.delete()
+                _with_retry(lambda: comment.edit("."), "comment edit")
+                _with_retry(comment.delete, "comment delete")
                 comments_deleted.append(comment)
-            except praw.exceptions.APIException as e:
+            except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"Error removing comment: {e}")
-                
-                
+
+
 def remove_comments_with_one_karma_and_no_replies(reddit, username, comments_deleted):
     """
     Remove comments with one karma, no replies, and are at least a week old.
@@ -168,11 +186,12 @@ def remove_comments_with_one_karma_and_no_replies(reddit, username, comments_del
                 # Write the date, karma score, and comment to the file
                 f.write(f"{comment_date} | {comment.score} | {comment.body}\n")
             try:
-                comment.edit(".")
-                comment.delete()
+                _with_retry(lambda: comment.edit("."), "comment edit")
+                _with_retry(comment.delete, "comment delete")
                 comments_deleted.append(comment)
-            except praw.exceptions.APIException as e:
+            except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"Error removing comment: {e}")
+
 
 def main():
     client_id, client_secret, username, password = get_reddit_credentials()
