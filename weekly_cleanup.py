@@ -11,11 +11,17 @@ Credential resolution order:
     2. Credentials.txt in the same directory (four lines: client_id,
        client_secret, username, password)
 
-Optional environment variables (Google Drive upload):
+Optional environment variables:
     GOOGLE_SERVICE_ACCOUNT_KEY  path to service-account JSON, or the JSON string itself
     GOOGLE_DRIVE_FOLDER_ID      ID of the Drive folder to upload logs into
+    DRY_RUN                     set to "1" to preview deletions without making changes
+
+Usage:
+    python weekly_cleanup.py             # normal run
+    python weekly_cleanup.py --dry-run   # preview only, nothing deleted
 """
 
+import argparse
 import os
 from datetime import datetime, timezone
 
@@ -60,7 +66,7 @@ def _should_delete(item) -> bool:
     return item.score == 1 and age_days > AGE_THRESHOLD_DAYS
 
 
-def main():
+def main(dry_run: bool = False):
     client_id, client_secret, username, password = _load_credentials()
     reddit = praw.Reddit(
         client_id=client_id,
@@ -72,7 +78,11 @@ def main():
     )
 
     print(f"Authenticated as: {reddit.user.me()}")
-    print(f"Criteria: score < 1  OR  (score == 1 AND older than {AGE_THRESHOLD_DAYS} days)\n")
+    print(f"Criteria: score < 1  OR  (score == 1 AND older than {AGE_THRESHOLD_DAYS} days)")
+    if dry_run:
+        print("DRY RUN — no items will be edited or deleted\n")
+    else:
+        print()
 
     # ── Comments ──────────────────────────────────────────────────────────
     comments_deleted = 0
@@ -80,42 +90,57 @@ def main():
     for comment in reddit.redditor(username).comments.new(limit=None):
         if _should_delete(comment):
             date_str = datetime.fromtimestamp(comment.created_utc, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-            with open("deleted_comments.txt", "a", encoding="utf-8") as f:
-                f.write(f"{date_str} | {comment.score} | {comment.body}\n")
-            try:
-                comment.edit(".")
-                comment.delete()
-                comments_deleted += 1
-                print(f"  Deleted comment (score={comment.score}) in r/{comment.subreddit}")
-            except praw.exceptions.APIException as e:
-                print(f"  Error deleting comment {comment.id}: {e}")
+            if dry_run:
+                print(f"  [DRY RUN] Would delete comment (score={comment.score}) in r/{comment.subreddit}: {comment.body[:80]!r}")
+            else:
+                with open("deleted_comments.txt", "a", encoding="utf-8") as f:
+                    f.write(f"{date_str} | {comment.score} | {comment.body}\n")
+                try:
+                    comment.edit(".")
+                    comment.delete()
+                    comments_deleted += 1
+                    print(f"  Deleted comment (score={comment.score}) in r/{comment.subreddit}")
+                except praw.exceptions.APIException as e:
+                    print(f"  Error deleting comment {comment.id}: {e}")
 
     # ── Posts ─────────────────────────────────────────────────────────────
     posts_deleted = 0
     print("\nScanning posts…")
     for submission in reddit.redditor(username).submissions.new(limit=None):
         if _should_delete(submission):
-            with open("deleted_posts.txt", "a", encoding="utf-8") as f:
-                f.write(
-                    f"{submission.title}, "
-                    f"{datetime.fromtimestamp(submission.created_utc, tz=timezone.utc)}, "
-                    f"{submission.score}, "
-                    f"{submission.subreddit.display_name}\n"
-                )
-            try:
-                submission.edit(".")
-                submission.delete()
-                posts_deleted += 1
-                print(f"  Deleted post '{submission.title}' (score={submission.score}) in r/{submission.subreddit}")
-            except praw.exceptions.APIException as e:
-                print(f"  Error deleting post {submission.id}: {e}")
+            if dry_run:
+                print(f"  [DRY RUN] Would delete post '{submission.title}' (score={submission.score}) in r/{submission.subreddit}")
+            else:
+                with open("deleted_posts.txt", "a", encoding="utf-8") as f:
+                    f.write(
+                        f"{submission.title}, "
+                        f"{datetime.fromtimestamp(submission.created_utc, tz=timezone.utc)}, "
+                        f"{submission.score}, "
+                        f"{submission.subreddit.display_name}\n"
+                    )
+                try:
+                    submission.edit(".")
+                    submission.delete()
+                    posts_deleted += 1
+                    print(f"  Deleted post '{submission.title}' (score={submission.score}) in r/{submission.subreddit}")
+                except praw.exceptions.APIException as e:
+                    print(f"  Error deleting post {submission.id}: {e}")
 
-    print(f"\nDone. Deleted {comments_deleted} comment(s) and {posts_deleted} post(s).")
-
-    # ── Google Drive upload ────────────────────────────────────────────────
-    print("\nUploading logs to Google Drive…")
-    maybe_upload_logs("deleted_comments.txt", "deleted_posts.txt")
+    if dry_run:
+        print("\nDry run complete — nothing was deleted.")
+    else:
+        print(f"\nDone. Deleted {comments_deleted} comment(s) and {posts_deleted} post(s).")
+        print("\nUploading logs to Google Drive…")
+        maybe_upload_logs("deleted_comments.txt", "deleted_posts.txt")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Weekly Reddit comment/post cleanup")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=os.environ.get("DRY_RUN", "0") == "1",
+        help="Preview which items would be deleted without making any changes",
+    )
+    args = parser.parse_args()
+    main(dry_run=args.dry_run)
