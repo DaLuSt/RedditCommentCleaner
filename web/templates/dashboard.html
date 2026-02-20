@@ -572,7 +572,13 @@
         msg += ` ${result.errors.length} error(s) — check console.`;
         console.error('Deletion errors:', result.errors);
       }
-      toast(result.errors && result.errors.length ? 'error' : 'success', msg);
+      const hasErrors = result.errors && result.errors.length > 0;
+      toast(hasErrors ? 'error' : 'success', msg);
+
+      // Show Drive links if the server uploaded the logs
+      if (result.drive_links && result.drive_links.length > 0) {
+        result.drive_links.forEach(link => showDriveLink(link.name, link.url));
+      }
     } catch (e) {
       toast('error', 'Delete failed: ' + e.message);
     } finally {
@@ -610,6 +616,21 @@
     el.textContent = msg;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+  }
+
+  function showDriveLink(name, url) {
+    let panel = document.getElementById('drive-panel');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'drive-panel';
+      panel.style.cssText = 'position:fixed;bottom:5rem;right:1.5rem;background:var(--surface);border:1px solid var(--positive);border-radius:6px;padding:0.75rem 1rem;font-size:0.8rem;z-index:300;max-width:280px;';
+      panel.innerHTML = '<div style="color:var(--positive);font-weight:700;margin-bottom:0.4rem">Logs saved to Drive</div><ul id="drive-links" style="list-style:none;padding:0;margin:0;"></ul>';
+      document.body.appendChild(panel);
+    }
+    const li = document.createElement('li');
+    li.innerHTML = `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(name)}</a>`;
+    document.getElementById('drive-links').appendChild(li);
+    setTimeout(() => { panel = document.getElementById('drive-panel'); if (panel) panel.remove(); }, 12000);
   }
 
   function esc(str) {
