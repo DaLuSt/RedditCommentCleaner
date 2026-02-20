@@ -9,12 +9,18 @@ Required environment variables:
     REDDIT_CLIENT_SECRET
     REDDIT_USERNAME
     REDDIT_PASSWORD
+
+Optional environment variables (Google Drive upload):
+    GOOGLE_SERVICE_ACCOUNT_KEY  path to service-account JSON, or the JSON string itself
+    GOOGLE_DRIVE_FOLDER_ID      ID of the Drive folder to upload logs into
 """
 
 import os
 from datetime import datetime
 
 import praw
+
+from drive_upload import maybe_upload_logs
 
 
 def main():
@@ -68,6 +74,10 @@ def main():
                 print(f"  Error deleting post {submission.id}: {e}")
 
     print(f"\nDone. Deleted {comments_deleted} comment(s) and {posts_deleted} post(s).")
+
+    # ── Google Drive upload ────────────────────────────────────────────────
+    print("\nUploading logs to Google Drive…")
+    maybe_upload_logs("deleted_comments.txt", "deleted_posts.txt")
 
 
 if __name__ == "__main__":
