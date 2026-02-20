@@ -6,7 +6,7 @@ import praw
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
 
 # Log files are kept at the repo root, not inside web/
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
