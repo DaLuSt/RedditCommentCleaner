@@ -63,16 +63,16 @@ def initialize_reddit(client_id, client_secret, username, password):
             username=username,
             password=password,
             user_agent='commentCleaner',
-            validate_on_submit=True 
+            validate_on_submit=True
         )
         reddit.user.me()
         print("Authenticated successfully.")
         return reddit
-    except praw.exceptions.APIException as e:
+    except praw.exceptions.APIException:
         print("Error: Could not authenticate with the provided credentials.")
         exit()
-        
-        
+
+
 def get_days_old():
     """
     Prompt the user to input the age limit for comments.
@@ -118,7 +118,7 @@ def delete_old_posts(reddit, username, days_old):
     print(f"Deleted {posts_deleted} posts.")
     return posts_deleted
 
-        
+
 def main():
     client_id, client_secret, username, password = get_reddit_credentials()
 

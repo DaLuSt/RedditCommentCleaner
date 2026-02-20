@@ -23,7 +23,7 @@ def get_reddit_credentials(credentials_file="Credentials.txt"):
             return client_id, client_secret, username, password
     except FileNotFoundError:
         print("Error: Could not find the credentials file.")
-    
+
     # If file reading fails or file is not found, prompt the user to input credentials manually
     client_id = input("Enter your Reddit client ID: ")
     client_secret = input("Enter your Reddit client secret: ")
@@ -78,12 +78,12 @@ def initialize_reddit(client_id, client_secret, username, password):
             username=username,
             password=password,
             user_agent='commentCleaner',
-            validate_on_submit=True 
+            validate_on_submit=True
         )
         reddit.user.me()
         print("Authenticated successfully.")
         return reddit
-    except praw.exceptions.APIException as e:
+    except praw.exceptions.APIException:
         print("Error: Could not authenticate with the provided credentials.")
         exit()
 
@@ -138,8 +138,8 @@ def remove_comments_with_negative_karma(reddit, username, comments_deleted):
                 comments_deleted.append(comment)
             except praw.exceptions.APIException as e:
                 print(f"Error removing comment: {e}")
-                
-                
+
+
 def remove_comments_with_one_karma_and_no_replies(reddit, username, comments_deleted):
     """
     Remove comments with one karma, no replies, and are at least a week old.

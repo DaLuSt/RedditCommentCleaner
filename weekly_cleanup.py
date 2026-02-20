@@ -42,7 +42,7 @@ def _load_credentials():
     cred_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Credentials.txt")
     if os.path.exists(cred_path):
         with open(cred_path, encoding="utf-8") as f:
-            lines = [l.strip() for l in f.readlines()]
+            lines = [line.strip() for line in f.readlines()]
         if len(lines) >= 4:
             return lines[0], lines[1], lines[2], lines[3]
 
