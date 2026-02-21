@@ -1,3 +1,4 @@
+import json
 import praw
 import time
 from datetime import datetime
@@ -104,9 +105,18 @@ def delete_old_posts(reddit, username, days_old):
     posts_deleted = 0
     for submission in reddit.redditor(username).submissions.new(limit=None):
         if submission.created_utc < (time.time() - (days_old * 86400)):
-            # save post title, date, karma, and subreddit deleted to a file with utf-8 encoding
             with open("deleted_posts.txt", "a", encoding="utf-8") as f:
-                f.write(f"{submission.title}, {datetime.utcfromtimestamp(submission.created_utc)}, {submission.score}, {submission.subreddit.display_name}\n")
+                f.write(json.dumps({
+                    "deleted_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "created_at": datetime.utcfromtimestamp(submission.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "id": submission.name,
+                    "subreddit": submission.subreddit.display_name,
+                    "score": submission.score,
+                    "title": submission.title,
+                    "permalink": f"https://reddit.com{submission.permalink}",
+                    "num_comments": submission.num_comments,
+                    "source": "cli",
+                }) + "\n")
             try:
                 submission.edit(".")
                 submission.delete()

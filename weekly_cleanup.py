@@ -22,6 +22,7 @@ Usage:
 """
 
 import argparse
+import json
 import os
 from datetime import datetime, timezone
 
@@ -89,12 +90,20 @@ def main(dry_run: bool = False):
     print("Scanning comments…")
     for comment in reddit.redditor(username).comments.new(limit=None):
         if _should_delete(comment):
-            date_str = datetime.fromtimestamp(comment.created_utc, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             if dry_run:
                 print(f"  [DRY RUN] Would delete comment (score={comment.score}) in r/{comment.subreddit}: {comment.body[:80]!r}")
             else:
                 with open("deleted_comments.txt", "a", encoding="utf-8") as f:
-                    f.write(f"{date_str} | {comment.score} | {comment.body}\n")
+                    f.write(json.dumps({
+                        "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "created_at": datetime.fromtimestamp(comment.created_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "id": comment.name,
+                        "subreddit": str(comment.subreddit),
+                        "score": comment.score,
+                        "permalink": f"https://reddit.com{comment.permalink}",
+                        "body": comment.body,
+                        "source": "ci",
+                    }) + "\n")
                 try:
                     comment.edit(".")
                     comment.delete()
@@ -112,12 +121,17 @@ def main(dry_run: bool = False):
                 print(f"  [DRY RUN] Would delete post '{submission.title}' (score={submission.score}) in r/{submission.subreddit}")
             else:
                 with open("deleted_posts.txt", "a", encoding="utf-8") as f:
-                    f.write(
-                        f"{submission.title}, "
-                        f"{datetime.fromtimestamp(submission.created_utc, tz=timezone.utc)}, "
-                        f"{submission.score}, "
-                        f"{submission.subreddit.display_name}\n"
-                    )
+                    f.write(json.dumps({
+                        "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "created_at": datetime.fromtimestamp(submission.created_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "id": submission.name,
+                        "subreddit": submission.subreddit.display_name,
+                        "score": submission.score,
+                        "title": submission.title,
+                        "permalink": f"https://reddit.com{submission.permalink}",
+                        "num_comments": submission.num_comments,
+                        "source": "ci",
+                    }) + "\n")
                 try:
                     submission.edit(".")
                     submission.delete()
