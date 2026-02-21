@@ -89,12 +89,13 @@ def main(dry_run: bool = False):
     print("Scanning comments…")
     for comment in reddit.redditor(username).comments.new(limit=None):
         if _should_delete(comment):
-            date_str = datetime.fromtimestamp(comment.created_utc, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            created_at = datetime.fromtimestamp(comment.created_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            deleted_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             if dry_run:
                 print(f"  [DRY RUN] Would delete comment (score={comment.score}) in r/{comment.subreddit}: {comment.body[:80]!r}")
             else:
                 with open("deleted_comments.txt", "a", encoding="utf-8") as f:
-                    f.write(f"{date_str} | {comment.score} | {comment.body}\n")
+                    f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.body}\n")
                 try:
                     comment.edit(".")
                     comment.delete()
@@ -111,10 +112,13 @@ def main(dry_run: bool = False):
             if dry_run:
                 print(f"  [DRY RUN] Would delete post '{submission.title}' (score={submission.score}) in r/{submission.subreddit}")
             else:
+                created_at = datetime.fromtimestamp(submission.created_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                deleted_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 with open("deleted_posts.txt", "a", encoding="utf-8") as f:
                     f.write(
                         f"{submission.title}, "
-                        f"{datetime.fromtimestamp(submission.created_utc, tz=timezone.utc)}, "
+                        f"{created_at}, "
+                        f"{deleted_at}, "
                         f"{submission.score}, "
                         f"{submission.subreddit.display_name}\n"
                     )
