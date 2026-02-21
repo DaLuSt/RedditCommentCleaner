@@ -143,7 +143,7 @@ def api_delete():
                     f"{submission.title}, "
                     f"{datetime.utcfromtimestamp(submission.created_utc)}, "
                     f"{submission.score}, "
-                    f"{submission.subreddit.display_name}\n"
+                    f"{submission.subreddit.display_name}, {submission.num_comments}\n"
                 )
             submission.edit(".")
             submission.delete()

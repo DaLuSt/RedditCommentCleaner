@@ -116,7 +116,7 @@ def main(dry_run: bool = False):
                         f"{submission.title}, "
                         f"{datetime.fromtimestamp(submission.created_utc, tz=timezone.utc)}, "
                         f"{submission.score}, "
-                        f"{submission.subreddit.display_name}\n"
+                        f"{submission.subreddit.display_name}, {submission.num_comments}\n"
                     )
                 try:
                     submission.edit(".")
