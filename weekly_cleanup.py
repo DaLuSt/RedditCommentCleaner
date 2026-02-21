@@ -90,11 +90,12 @@ def main(dry_run: bool = False):
     for comment in reddit.redditor(username).comments.new(limit=None):
         if _should_delete(comment):
             date_str = datetime.fromtimestamp(comment.created_utc, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            safe_body = comment.body.replace("\n", "\\n")
             if dry_run:
                 print(f"  [DRY RUN] Would delete comment (score={comment.score}) in r/{comment.subreddit}: {comment.body[:80]!r}")
             else:
                 with open("deleted_comments.txt", "a", encoding="utf-8") as f:
-                    f.write(f"{date_str} | {comment.score} | {comment.body}\n")
+                    f.write(f"{date_str} | {comment.score} | {safe_body}\n")
                 try:
                     comment.edit(".")
                     comment.delete()

@@ -103,9 +103,9 @@ def delete_old_comments(reddit, username, days_old, comments_deleted):
     for comment in reddit.redditor(username).comments.new(limit=None):
         if time.time() - comment.created_utc > days_old * 24 * 60 * 60:
             comment_date = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%d %H:%M:%S")
+            safe_body = comment.body.replace("\n", "\\n")
             with open('deleted_comments.txt', 'a', encoding='utf-8') as f:
-                # Write the date, karma score, and comment body to the file
-                f.write(f"{comment_date} | {comment.score} | {comment.body}\n")
+                f.write(f"{comment_date} | {comment.score} | {safe_body}\n")
             try:
                 comment.edit(".")
                 comment.delete()
@@ -129,9 +129,9 @@ def remove_comments_with_negative_karma(reddit, username, comments_deleted):
     for comment in reddit.redditor(username).comments.new(limit=None):
         if comment.score <= 0:
             comment_date = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%d %H:%M:%S")
+            safe_body = comment.body.replace("\n", "\\n")
             with open('deleted_comments.txt', 'a', encoding='utf-8') as f:
-                # Write the date, karma score, and comment body to the file
-                f.write(f"{comment_date} | {comment.score} | {comment.body}\n")
+                f.write(f"{comment_date} | {comment.score} | {safe_body}\n")
             try:
                 comment.edit(".")
                 comment.delete()
@@ -163,10 +163,9 @@ def remove_comments_with_one_karma_and_no_replies(reddit, username, comments_del
         if comment.score <= 1 and len(comment.replies) == 0 and datetime.utcfromtimestamp(comment.created_utc) < one_week_ago:
             # Format the date of the comment
             comment_date = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%d %H:%M:%S")
-
+            safe_body = comment.body.replace("\n", "\\n")
             with open('deleted_comments.txt', 'a', encoding='utf-8') as f:
-                # Write the date, karma score, and comment to the file
-                f.write(f"{comment_date} | {comment.score} | {comment.body}\n")
+                f.write(f"{comment_date} | {comment.score} | {safe_body}\n")
             try:
                 comment.edit(".")
                 comment.delete()

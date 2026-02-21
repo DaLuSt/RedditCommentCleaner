@@ -127,8 +127,9 @@ def api_delete():
         try:
             comment = reddit.comment(cid)
             date_str = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%d %H:%M:%S")
+            safe_body = comment.body.replace("\n", "\\n")
             with open(DELETED_COMMENTS_FILE, "a", encoding="utf-8") as f:
-                f.write(f"{date_str} | {comment.score} | {comment.body}\n")
+                f.write(f"{date_str} | {comment.score} | {safe_body}\n")
             comment.edit(".")
             comment.delete()
             deleted_comments += 1
