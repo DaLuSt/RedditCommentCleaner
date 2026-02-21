@@ -106,7 +106,7 @@ def delete_old_posts(reddit, username, days_old):
         if submission.created_utc < (time.time() - (days_old * 86400)):
             # save post title, date, karma, and subreddit deleted to a file with utf-8 encoding
             with open("deleted_posts.txt", "a", encoding="utf-8") as f:
-                f.write(f"{submission.title}, {datetime.utcfromtimestamp(submission.created_utc)}, {submission.score}, {submission.subreddit.display_name}\n")
+                f.write(f"{submission.title}, {submission.name}, {datetime.utcfromtimestamp(submission.created_utc)}, {submission.score}, {submission.subreddit.display_name}\n")
             try:
                 submission.edit(".")
                 submission.delete()
