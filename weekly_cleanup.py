@@ -94,7 +94,7 @@ def main(dry_run: bool = False):
                 print(f"  [DRY RUN] Would delete comment (score={comment.score}) in r/{comment.subreddit}: {comment.body[:80]!r}")
             else:
                 with open("deleted_comments.txt", "a", encoding="utf-8") as f:
-                    f.write(f"{date_str} | {comment.score} | {comment.body}\n")
+                    f.write(f"{date_str} | {comment.subreddit} | {comment.score} | {comment.body}\n")
                 try:
                     comment.edit(".")
                     comment.delete()
