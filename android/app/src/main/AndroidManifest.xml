@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.RedditCommentCleaner">
+
+        <!-- Entry point: routes to Login or Dashboard based on token presence -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".auth.LoginActivity"
+            android:exported="false" />
+
+        <!-- Receives the OAuth redirect URI redditcommentcleaner://auth?code=... -->
+        <activity
+            android:name=".auth.OAuthCallbackActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="redditcommentcleaner"
+                    android:host="auth" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".dashboard.DashboardActivity"
+            android:exported="false" />
+
+    </application>
+</manifest>
