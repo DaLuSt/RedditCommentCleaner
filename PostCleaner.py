@@ -1,9 +1,26 @@
 import json
 import praw
+import prawcore
 import time
 from datetime import datetime
 
 from drive_upload import maybe_upload_logs
+
+_RETRY_WAIT = (5, 15, 45)
+
+
+def _with_retry(fn, label="operation"):
+    """Call fn(), retrying up to 3 times on rate-limit errors."""
+    for attempt, wait in enumerate(_RETRY_WAIT, start=1):
+        try:
+            return fn()
+        except prawcore.exceptions.TooManyRequests as exc:
+            retry_after = getattr(exc, "retry_after", None) or wait
+            print(f"  Rate limited on {label}. Waiting {retry_after}s (attempt {attempt}/3)…")
+            time.sleep(retry_after)
+        except praw.exceptions.APIException:
+            raise
+    return fn()
 
 
 def get_reddit_credentials(credentials_file="Credentials.txt"):
@@ -119,11 +136,11 @@ def delete_old_posts(reddit, username, days_old):
                     "source": "cli",
                 }) + "\n")
             try:
-                submission.edit(".")
-                submission.delete()
+                _with_retry(lambda: submission.edit("."), "post edit")
+                _with_retry(submission.delete, "post delete")
                 posts_deleted += 1
                 print(f"Deleted post: {submission.title}")
-            except praw.exceptions.APIException as e:
+            except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"Error removing post: {e}")
 
     print(f"Deleted {posts_deleted} posts.")
