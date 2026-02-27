@@ -41,5 +41,5 @@ class TestMaybeUploadLogs:
         fake_result = [{"name": "deleted_comments.txt", "url": "https://drive.google.com/file/d/abc/view"}]
         with patch("drive_upload.upload_logs", return_value=fake_result) as mock_upload:
             result = maybe_upload_logs("deleted_comments.txt")
-        mock_upload.assert_called_once_with("folder123", "deleted_comments.txt")
+        mock_upload.assert_called_once_with("folder123", "deleted_comments.txt", date_suffix=None)
         assert result == fake_result

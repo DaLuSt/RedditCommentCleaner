@@ -145,7 +145,8 @@ def main(dry_run: bool = False):
     else:
         print(f"\nDone. Deleted {comments_deleted} comment(s) and {posts_deleted} post(s).")
         print("\nUploading logs to Google Drive…")
-        maybe_upload_logs("deleted_comments.txt", "deleted_posts.txt")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        maybe_upload_logs("deleted_comments.txt", "deleted_posts.txt", date_suffix=today)
 
 
 if __name__ == "__main__":

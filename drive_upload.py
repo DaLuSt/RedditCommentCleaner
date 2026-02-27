@@ -58,16 +58,24 @@ def _get_service():
     return build("drive", "v3", credentials=creds)
 
 
-def upload_logs(folder_id: str, *file_paths: str) -> list:
+def upload_logs(folder_id: str, *file_paths: str, date_suffix: str = None) -> list:
     """
     Upload one or more files to a Google Drive folder.
 
-    If a file with the same name already exists in the folder it is replaced
-    (updated) rather than creating a duplicate.
+    When *date_suffix* is provided (e.g. ``"2026-02-27"``) the base filename is
+    extended before upload so that each week's file is stored separately::
+
+        deleted_comments.txt  →  deleted_comments_2026-02-27.txt
+
+    Dated uploads are always created as new files (no in-place update).
+
+    Without *date_suffix* the original filename is used and an existing file
+    with that name is updated in-place rather than creating a duplicate.
 
     Args:
         folder_id: Google Drive folder ID to upload into.
         *file_paths: Absolute or relative paths of local files to upload.
+        date_suffix: Optional ``YYYY-MM-DD`` string appended to each filename.
 
     Returns:
         list of dicts with keys 'name' and 'url' for each uploaded file.
@@ -79,25 +87,40 @@ def upload_logs(folder_id: str, *file_paths: str) -> list:
         if not os.path.exists(path):
             continue
 
-        name = os.path.basename(path)
+        base = os.path.basename(path)
+        if date_suffix:
+            stem, ext = os.path.splitext(base)
+            name = f"{stem}_{date_suffix}{ext}"
+        else:
+            name = base
+
         media = MediaFileUpload(path, mimetype="text/plain", resumable=False)
 
-        # Check whether a file with this name already exists in the folder
-        existing = service.files().list(
-            q=f"name='{name}' and '{folder_id}' in parents and trashed=false",
-            fields="files(id)",
-        ).execute().get("files", [])
-
-        if existing:
-            file_id = existing[0]["id"]
-            service.files().update(fileId=file_id, media_body=media).execute()
-        else:
+        if date_suffix:
+            # Dated files are unique — always create a new file.
             file_meta = service.files().create(
                 body={"name": name, "parents": [folder_id]},
                 media_body=media,
                 fields="id",
             ).execute()
             file_id = file_meta["id"]
+        else:
+            # Undated files: update in-place to avoid duplicates.
+            existing = service.files().list(
+                q=f"name='{name}' and '{folder_id}' in parents and trashed=false",
+                fields="files(id)",
+            ).execute().get("files", [])
+
+            if existing:
+                file_id = existing[0]["id"]
+                service.files().update(fileId=file_id, media_body=media).execute()
+            else:
+                file_meta = service.files().create(
+                    body={"name": name, "parents": [folder_id]},
+                    media_body=media,
+                    fields="id",
+                ).execute()
+                file_id = file_meta["id"]
 
         url = f"https://drive.google.com/file/d/{file_id}/view"
         results.append({"name": name, "url": url})
@@ -106,12 +129,15 @@ def upload_logs(folder_id: str, *file_paths: str) -> list:
     return results
 
 
-def maybe_upload_logs(*file_paths: str) -> list:
+def maybe_upload_logs(*file_paths: str, date_suffix: str = None) -> list:
     """
     Upload logs to Drive when credentials are configured; silently skip otherwise.
 
     Args:
         *file_paths: Paths of log files to upload.
+        date_suffix: Optional ``YYYY-MM-DD`` string passed to :func:`upload_logs`.
+            When provided, files are stored with a date-stamped name so each
+            run's logs are preserved as a separate file in Drive.
 
     Returns:
         List of dicts with 'name' and 'url', or empty list if Drive is not
@@ -122,7 +148,7 @@ def maybe_upload_logs(*file_paths: str) -> list:
         print("Google Drive upload skipped: GOOGLE_SERVICE_ACCOUNT_KEY or GOOGLE_DRIVE_FOLDER_ID not set.")
         return []
     try:
-        return upload_logs(folder_id, *file_paths)
+        return upload_logs(folder_id, *file_paths, date_suffix=date_suffix)
     except Exception as exc:
         print(f"Google Drive upload skipped: {exc}")
         return []
