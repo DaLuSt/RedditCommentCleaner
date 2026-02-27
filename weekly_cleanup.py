@@ -95,7 +95,7 @@ def main(dry_run: bool = False):
                 print(f"  [DRY RUN] Would delete comment (score={comment.score}) in r/{comment.subreddit}: {comment.body[:80]!r}")
             else:
                 with open("deleted_comments.txt", "a", encoding="utf-8") as f:
-                    f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.body}\n")
+                    f.write(f"{deleted_at} | {created_at} | {comment.score} | https://reddit.com{comment.permalink} | {comment.body}\n")
                 try:
                     comment.edit(".")
                     comment.delete()
@@ -120,7 +120,8 @@ def main(dry_run: bool = False):
                         f"{created_at}, "
                         f"{deleted_at}, "
                         f"{submission.score}, "
-                        f"{submission.subreddit.display_name}\n"
+                        f"{submission.subreddit.display_name}, "
+                        f"https://reddit.com{submission.permalink}\n"
                     )
                 try:
                     submission.edit(".")
