@@ -1,3 +1,4 @@
+import json
 import praw
 import time
 from datetime import datetime, timedelta
@@ -102,10 +103,17 @@ def delete_old_comments(reddit, username, days_old, comments_deleted):
     """
     for comment in reddit.redditor(username).comments.new(limit=None):
         if time.time() - comment.created_utc > days_old * 24 * 60 * 60:
-            created_at = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             with open('deleted_comments.txt', 'a', encoding='utf-8') as f:
-                f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.body}\n")
+                f.write(json.dumps({
+                    "deleted_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "created_at": datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "id": comment.name,
+                    "subreddit": str(comment.subreddit),
+                    "score": comment.score,
+                    "permalink": f"https://reddit.com{comment.permalink}",
+                    "body": comment.body,
+                    "source": "cli-mode-1",
+                }) + "\n")
             try:
                 comment.edit(".")
                 comment.delete()
@@ -128,10 +136,17 @@ def remove_comments_with_negative_karma(reddit, username, comments_deleted):
     """
     for comment in reddit.redditor(username).comments.new(limit=None):
         if comment.score <= 0:
-            created_at = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             with open('deleted_comments.txt', 'a', encoding='utf-8') as f:
-                f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.body}\n")
+                f.write(json.dumps({
+                    "deleted_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "created_at": datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "id": comment.name,
+                    "subreddit": str(comment.subreddit),
+                    "score": comment.score,
+                    "permalink": f"https://reddit.com{comment.permalink}",
+                    "body": comment.body,
+                    "source": "cli-mode-2",
+                }) + "\n")
             try:
                 comment.edit(".")
                 comment.delete()
@@ -161,10 +176,17 @@ def remove_comments_with_one_karma_and_no_replies(reddit, username, comments_del
         comment.refresh()
         # Check if the comment meets the criteria
         if comment.score <= 1 and len(comment.replies) == 0 and datetime.utcfromtimestamp(comment.created_utc) < one_week_ago:
-            created_at = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             with open('deleted_comments.txt', 'a', encoding='utf-8') as f:
-                f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.body}\n")
+                f.write(json.dumps({
+                    "deleted_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "created_at": datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "id": comment.name,
+                    "subreddit": str(comment.subreddit),
+                    "score": comment.score,
+                    "permalink": f"https://reddit.com{comment.permalink}",
+                    "body": comment.body,
+                    "source": "cli-mode-3",
+                }) + "\n")
             try:
                 comment.edit(".")
                 comment.delete()
