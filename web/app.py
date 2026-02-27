@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from datetime import datetime
@@ -126,10 +127,17 @@ def api_delete():
     for cid in comment_ids:
         try:
             comment = reddit.comment(cid)
-            created_at = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             with open(DELETED_COMMENTS_FILE, "a", encoding="utf-8") as f:
-                f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.subreddit} | {comment.body}\n")
+                f.write(json.dumps({
+                    "deleted_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "created_at": datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "id": comment.name,
+                    "subreddit": str(comment.subreddit),
+                    "score": comment.score,
+                    "permalink": f"https://reddit.com{comment.permalink}",
+                    "body": comment.body,
+                    "source": "web",
+                }) + "\n")
             comment.edit(".")
             comment.delete()
             deleted_comments += 1
@@ -139,16 +147,18 @@ def api_delete():
     for pid in post_ids:
         try:
             submission = reddit.submission(pid)
-            created_at = datetime.utcfromtimestamp(submission.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             with open(DELETED_POSTS_FILE, "a", encoding="utf-8") as f:
-                f.write(
-                    f"{submission.title}, "
-                    f"{created_at}, "
-                    f"{deleted_at}, "
-                    f"{submission.score}, "
-                    f"{submission.subreddit.display_name}\n"
-                )
+                f.write(json.dumps({
+                    "deleted_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "created_at": datetime.utcfromtimestamp(submission.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "id": submission.name,
+                    "subreddit": submission.subreddit.display_name,
+                    "score": submission.score,
+                    "title": submission.title,
+                    "permalink": f"https://reddit.com{submission.permalink}",
+                    "num_comments": submission.num_comments,
+                    "source": "web",
+                }) + "\n")
             submission.edit(".")
             submission.delete()
             deleted_posts += 1
