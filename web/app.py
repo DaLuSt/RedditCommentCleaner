@@ -147,7 +147,8 @@ def api_delete():
                     f"{created_at}, "
                     f"{deleted_at}, "
                     f"{submission.score}, "
-                    f"{submission.subreddit.display_name}\n"
+                    f"{submission.subreddit.display_name}, "
+                    f"{submission.num_comments}\n"
                 )
             submission.edit(".")
             submission.delete()

@@ -108,7 +108,7 @@ def delete_old_posts(reddit, username, days_old):
             with open("deleted_posts.txt", "a", encoding="utf-8") as f:
                 created_at = datetime.utcfromtimestamp(submission.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-                f.write(f"{submission.title}, {created_at}, {deleted_at}, {submission.score}, {submission.subreddit.display_name}\n")
+                f.write(f"{submission.title}, {created_at}, {deleted_at}, {submission.score}, {submission.subreddit.display_name}, {submission.num_comments}\n")
             try:
                 submission.edit(".")
                 submission.delete()
