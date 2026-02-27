@@ -1,9 +1,26 @@
 import json
 import praw
+import prawcore
 import time
 from datetime import datetime, timedelta
 
 from drive_upload import maybe_upload_logs
+
+_RETRY_WAIT = (5, 15, 45)
+
+
+def _with_retry(fn, label="operation"):
+    """Call fn(), retrying up to 3 times on rate-limit errors."""
+    for attempt, wait in enumerate(_RETRY_WAIT, start=1):
+        try:
+            return fn()
+        except prawcore.exceptions.TooManyRequests as exc:
+            retry_after = getattr(exc, "retry_after", None) or wait
+            print(f"  Rate limited on {label}. Waiting {retry_after}s (attempt {attempt}/3)…")
+            time.sleep(retry_after)
+        except praw.exceptions.APIException:
+            raise
+    return fn()
 
 def get_reddit_credentials(credentials_file="Credentials.txt"):
     """
@@ -115,10 +132,10 @@ def delete_old_comments(reddit, username, days_old, comments_deleted):
                     "source": "cli-mode-1",
                 }) + "\n")
             try:
-                comment.edit(".")
-                comment.delete()
+                _with_retry(lambda: comment.edit("."), "comment edit")
+                _with_retry(comment.delete, "comment delete")
                 comments_deleted.append(comment)
-            except praw.exceptions.APIException as e:
+            except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"Error deleting comment: {e}")
 
 
@@ -148,10 +165,10 @@ def remove_comments_with_negative_karma(reddit, username, comments_deleted):
                     "source": "cli-mode-2",
                 }) + "\n")
             try:
-                comment.edit(".")
-                comment.delete()
+                _with_retry(lambda: comment.edit("."), "comment edit")
+                _with_retry(comment.delete, "comment delete")
                 comments_deleted.append(comment)
-            except praw.exceptions.APIException as e:
+            except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"Error removing comment: {e}")
 
 
@@ -188,10 +205,10 @@ def remove_comments_with_one_karma_and_no_replies(reddit, username, comments_del
                     "source": "cli-mode-3",
                 }) + "\n")
             try:
-                comment.edit(".")
-                comment.delete()
+                _with_retry(lambda: comment.edit("."), "comment edit")
+                _with_retry(comment.delete, "comment delete")
                 comments_deleted.append(comment)
-            except praw.exceptions.APIException as e:
+            except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"Error removing comment: {e}")
 
 def main():

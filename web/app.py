@@ -1,9 +1,11 @@
 import json
 import os
 import sys
+import time
 from datetime import datetime
 
 import praw
+import prawcore
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
@@ -18,6 +20,22 @@ if BASE_DIR not in sys.path:
 from drive_upload import maybe_upload_logs  # noqa: E402
 DELETED_COMMENTS_FILE = os.path.join(BASE_DIR, "deleted_comments.txt")
 DELETED_POSTS_FILE = os.path.join(BASE_DIR, "deleted_posts.txt")
+
+_RETRY_WAIT = (5, 15, 45)
+
+
+def _with_retry(fn, label="operation"):
+    """Call fn(), retrying up to 3 times on rate-limit errors."""
+    for attempt, wait in enumerate(_RETRY_WAIT, start=1):
+        try:
+            return fn()
+        except prawcore.exceptions.TooManyRequests as exc:
+            retry_after = getattr(exc, "retry_after", None) or wait
+            print(f"  Rate limited on {label}. Waiting {retry_after}s (attempt {attempt}/3)…")
+            time.sleep(retry_after)
+        except praw.exceptions.APIException:
+            raise
+    return fn()
 
 
 def make_reddit():
@@ -138,8 +156,8 @@ def api_delete():
                     "body": comment.body,
                     "source": "web",
                 }) + "\n")
-            comment.edit(".")
-            comment.delete()
+            _with_retry(lambda: comment.edit("."), "comment edit")
+            _with_retry(comment.delete, "comment delete")
             deleted_comments += 1
         except Exception as e:
             errors.append(f"Comment {cid}: {e}")
@@ -159,8 +177,8 @@ def api_delete():
                     "num_comments": submission.num_comments,
                     "source": "web",
                 }) + "\n")
-            submission.edit(".")
-            submission.delete()
+            _with_retry(lambda: submission.edit("."), "post edit")
+            _with_retry(submission.delete, "post delete")
             deleted_posts += 1
         except Exception as e:
             errors.append(f"Post {pid}: {e}")
