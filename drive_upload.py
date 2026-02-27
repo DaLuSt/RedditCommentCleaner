@@ -38,7 +38,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+_SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 
 def _get_service():
