@@ -105,7 +105,7 @@ def delete_old_comments(reddit, username, days_old, comments_deleted):
             created_at = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             with open('deleted_comments.txt', 'a', encoding='utf-8') as f:
-                f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.body}\n")
+                f.write(f"{deleted_at} | {created_at} | {comment.name} | {comment.score} | {comment.body}\n")
             try:
                 comment.edit(".")
                 comment.delete()
@@ -131,7 +131,7 @@ def remove_comments_with_negative_karma(reddit, username, comments_deleted):
             created_at = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             with open('deleted_comments.txt', 'a', encoding='utf-8') as f:
-                f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.body}\n")
+                f.write(f"{deleted_at} | {created_at} | {comment.name} | {comment.score} | {comment.body}\n")
             try:
                 comment.edit(".")
                 comment.delete()
@@ -164,7 +164,7 @@ def remove_comments_with_one_karma_and_no_replies(reddit, username, comments_del
             created_at = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             with open('deleted_comments.txt', 'a', encoding='utf-8') as f:
-                f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.body}\n")
+                f.write(f"{deleted_at} | {created_at} | {comment.name} | {comment.score} | {comment.body}\n")
             try:
                 comment.edit(".")
                 comment.delete()

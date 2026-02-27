@@ -129,7 +129,7 @@ def api_delete():
             created_at = datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             deleted_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
             with open(DELETED_COMMENTS_FILE, "a", encoding="utf-8") as f:
-                f.write(f"{deleted_at} | {created_at} | {comment.score} | {comment.body}\n")
+                f.write(f"{deleted_at} | {created_at} | {comment.name} | {comment.score} | {comment.body}\n")
             comment.edit(".")
             comment.delete()
             deleted_comments += 1
@@ -146,6 +146,7 @@ def api_delete():
                     f"{submission.title}, "
                     f"{created_at}, "
                     f"{deleted_at}, "
+                    f"{submission.name}, "
                     f"{submission.score}, "
                     f"{submission.subreddit.display_name}\n"
                 )
