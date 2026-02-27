@@ -58,6 +58,23 @@ def _get_service():
     return build("drive", "v3", credentials=creds)
 
 
+def _check_folder(service, folder_id: str) -> None:
+    """Verify the Drive folder is accessible; raise a clear error if not."""
+    from googleapiclient.errors import HttpError  # lazy — avoids top-level import failure in envs without the package
+
+    try:
+        service.files().get(fileId=folder_id, fields="id").execute()
+    except HttpError as exc:
+        if exc.resp.status == 404:
+            raise RuntimeError(
+                f"Google Drive folder '{folder_id}' was not found or is not "
+                "accessible by the service account. "
+                "Share the folder with the service account email address "
+                "(Editor access) and try again."
+            ) from exc
+        raise
+
+
 def upload_logs(folder_id: str, *file_paths: str, date_suffix: str = None) -> list:
     """
     Upload one or more files to a Google Drive folder.
@@ -81,6 +98,7 @@ def upload_logs(folder_id: str, *file_paths: str, date_suffix: str = None) -> li
         list of dicts with keys 'name' and 'url' for each uploaded file.
     """
     service = _get_service()
+    _check_folder(service, folder_id)
     results = []
 
     for path in file_paths:
