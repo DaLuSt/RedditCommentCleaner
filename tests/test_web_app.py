@@ -121,6 +121,9 @@ class TestApiDelete:
         mock_comment = MagicMock()
         mock_comment.created_utc = 1700000000.0
         mock_comment.score       = -1
+        mock_comment.name        = "t1_abc123"
+        mock_comment.subreddit   = "testsubreddit"
+        mock_comment.permalink   = "/r/testsubreddit/comments/abc/test/abc123/"
         mock_comment.body        = "bad comment"
 
         mock_reddit = MagicMock()
