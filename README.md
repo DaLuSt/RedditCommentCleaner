@@ -2,12 +2,13 @@
 
 Bulk-delete your Reddit comments and posts. Each item is edited to `"."` before deletion to prevent content-scraping tools from capturing the original text.
 
-Available in three forms:
+Available in four forms:
 
 | Mode | Description |
 |------|-------------|
 | **CLI** | Interactive terminal scripts (`commentCleaner.py`, `PostCleaner.py`) |
 | **Web app** | Browser dashboard — filter, select, and delete items visually |
+| **Android** | Native Kotlin app with OAuth PKCE flow (`android/`) |
 | **CI/CD** | Automated weekly GitHub Actions run (score < 1, or score == 1 + older than 14 days) |
 
 ---
@@ -33,6 +34,13 @@ Available in three forms:
 ---
 
 ## CLI scripts
+
+Both scripts accept a `--dry-run` flag to preview which items would be deleted without making any changes:
+
+```bash
+python commentCleaner.py --dry-run
+python PostCleaner.py --dry-run
+```
 
 ### `commentCleaner.py` — delete comments
 
@@ -85,6 +93,19 @@ python web/app.py
 4. Click **Delete Selected** — deleted rows disappear from the table in-place
 
 Logs are written to `deleted_comments.txt` / `deleted_posts.txt` in the repo root.
+
+---
+
+## Android app
+
+A native Kotlin app that mirrors the web app. Uses Reddit's **OAuth 2.0 PKCE** flow (no client secret needed).
+
+See [`android/SETUP.md`](android/SETUP.md) for full build and run instructions.
+
+**Quick start:**
+1. Register an **installed app** at <https://www.reddit.com/prefs/apps> with redirect URI `redditcommentcleaner://auth`
+2. Add your client ID to `android/app/build.gradle`
+3. Build: `cd android && ./gradlew assembleDebug`
 
 ---
 
@@ -153,11 +174,25 @@ python weekly_cleanup.py
 
 ---
 
+## Backfilling historical logs to Drive
+
+If you enabled Google Drive uploads after the weekly cleanup had already run several times, you can upload all past GitHub Actions artifacts retroactively:
+
+```bash
+export GOOGLE_SERVICE_ACCOUNT_KEY=/path/to/key.json
+export GOOGLE_DRIVE_FOLDER_ID=your_folder_id
+python scripts/backfill_drive_upload.py
+```
+
+Requires the `gh` CLI to be installed and authenticated (`gh auth status`).
+
+---
+
 ## Output files
 
 | File | Created by | Format |
 |------|-----------|--------|
-| `deleted_comments.txt` | all scripts | `YYYY-MM-DD HH:MM:SS \| score \| body` |
-| `deleted_posts.txt` | all scripts | `title, datetime, score, subreddit` |
+| `deleted_comments.txt` | all scripts | JSON lines — one object per deleted comment |
+| `deleted_posts.txt` | all scripts | JSON lines — one object per deleted post |
 
 Both files are excluded from git (`.gitignore`) and uploaded as GitHub Actions artifacts (retained 90 days) in addition to the optional Drive upload.

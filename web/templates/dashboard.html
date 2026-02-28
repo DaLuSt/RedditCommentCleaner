@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>RedditCommentCleaner — Dashboard</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -550,9 +551,13 @@
 
     setLoader(true, `Deleting ${total} item(s)…`);
     try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
       const res = await fetch('/api/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+        },
         body: JSON.stringify({ comment_ids: commentIds, post_ids: postIds }),
       });
       if (res.status === 401) { location.href = '/'; return; }
