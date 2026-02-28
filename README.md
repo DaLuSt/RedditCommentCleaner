@@ -1,4 +1,4 @@
-# RedditCommentCleaner v1.8
+# RedditCommentCleaner v1.9
 
 Bulk-delete your Reddit comments and posts. Each item is edited to `"."` before deletion to prevent content-scraping tools from capturing the original text.
 
