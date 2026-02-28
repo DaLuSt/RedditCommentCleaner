@@ -104,8 +104,10 @@ See [`android/SETUP.md`](android/SETUP.md) for full build and run instructions.
 
 **Quick start:**
 1. Register an **installed app** at <https://www.reddit.com/prefs/apps> with redirect URI `redditcommentcleaner://auth`
-2. Add your client ID to `android/app/build.gradle`
+2. Add your client ID to `android/local.properties` (never committed): `reddit.client_id=YOUR_ID`
 3. Build: `cd android && ./gradlew assembleDebug`
+
+**Play Store release:** see [`android/SETUP.md`](android/SETUP.md) for signing config, ProGuard, and the privacy policy requirement.
 
 ---
 
