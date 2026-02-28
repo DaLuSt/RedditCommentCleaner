@@ -18,17 +18,21 @@
 
 ---
 
-## 2. Put your client ID in the build config
+## 2. Add your client ID to `local.properties`
 
-Open `app/build.gradle` and replace `YOUR_CLIENT_ID`:
+`local.properties` lives in the `android/` directory and is already listed in `.gitignore` — **never commit it**.
 
-```groovy
-buildConfigField "String", "REDDIT_CLIENT_ID", '"abc123xyz"'   // ← your client ID here
+```properties
+# android/local.properties
+sdk.dir=/path/to/your/android/sdk
+reddit.client_id=abc123xyz
 ```
+
+The build script reads `reddit.client_id` automatically. Do **not** edit `app/build.gradle` to add the client ID directly.
 
 ---
 
-## 3. Build & run
+## 3. Build & run (debug)
 
 ```bash
 cd android
@@ -38,6 +42,61 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Or open the `android/` directory in Android Studio and click **Run**.
+
+---
+
+## 4. Build a release APK / AAB for Play Store
+
+### 4a. Generate a release keystore (one-time setup)
+
+```bash
+keytool -genkeypair -v \
+  -keystore my-release-key.jks \
+  -keyalg RSA -keysize 2048 \
+  -validity 10000 \
+  -alias my-key-alias
+```
+
+Move the resulting `.jks` file somewhere safe and **outside** the repo. Never commit it.
+
+### 4b. Create `keystore.properties`
+
+Create `android/keystore.properties` (already in `.gitignore`):
+
+```properties
+storeFile=/absolute/path/to/my-release-key.jks
+storePassword=your_store_password
+keyAlias=my-key-alias
+keyPassword=your_key_password
+```
+
+### 4c. Build the signed AAB
+
+```bash
+cd android
+./gradlew bundleRelease
+# Output: app/build/outputs/bundle/release/app-release.aab
+```
+
+Or build a signed APK:
+
+```bash
+./gradlew assembleRelease
+# Output: app/build/outputs/apk/release/app-release.apk
+```
+
+---
+
+## 5. Play Store listing requirements
+
+Before submitting to the Play Store you will also need:
+
+| Requirement | Where |
+|---|---|
+| **Privacy policy URL** | Host `PRIVACY_POLICY.md` (e.g. GitHub Pages) and paste the URL in the Play Console listing |
+| **Store listing icon** | 512×512 PNG (export from the vector at `res/drawable/ic_launcher_foreground.xml`) |
+| **Feature graphic** | 1024×500 PNG (create separately) |
+| **Screenshots** | Minimum 2 per supported form factor |
 
 ---
 
@@ -62,8 +121,7 @@ Or open the `android/` directory in Android Studio and click **Run**.
 |-------|---------|
 | `identity` | Read username |
 | `history`  | List comments and posts |
-| `edit`     | Overwrite item body with `"."` |
-| `vote`     | (reserved for future score filtering) |
+| `edit`     | Overwrite item body with `"."` before deletion |
 
 ---
 
@@ -71,7 +129,8 @@ Or open the `android/` directory in Android Studio and click **Run**.
 
 ```
 android/
-├── app/build.gradle               ← dependencies & buildConfigFields
+├── app/build.gradle               ← dependencies, signing config, buildConfigFields
+├── app/proguard-rules.pro         ← R8/ProGuard rules for release builds
 ├── app/src/main/
 │   ├── AndroidManifest.xml
 │   ├── java/com/redditcommentcleaner/
@@ -92,7 +151,11 @@ android/
 │   │       ├── TokenStorage.kt    ← EncryptedSharedPreferences wrapper
 │   │       └── PkceHelper.kt      ← PKCE code_verifier/challenge generation
 │   └── res/
+│       ├── drawable/              ← ic_launcher_background/foreground (vector)
 │       ├── layout/                ← activity and item layouts
-│       └── values/                ← colors, strings, themes
+│       ├── mipmap-anydpi-v26/     ← adaptive icon (ic_launcher, ic_launcher_round)
+│       ├── values/                ← colors, strings, themes
+│       └── xml/                   ← network_security_config.xml
+├── PRIVACY_POLICY.md              ← host this URL in Play Console listing
 └── SETUP.md                       ← this file
 ```

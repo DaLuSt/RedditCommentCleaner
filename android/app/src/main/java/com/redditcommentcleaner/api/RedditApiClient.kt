@@ -22,11 +22,12 @@ object RedditApiClient {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 // Refresh token if near expiry
-                if (tokenStorage.isTokenExpired() && !tokenStorage.refreshToken.isNullOrBlank()) {
+                val currentRefreshToken = tokenStorage.refreshToken
+                if (tokenStorage.isTokenExpired() && !currentRefreshToken.isNullOrBlank()) {
                     runBlocking {
                         runCatching {
                             val resp = authService().refreshToken(
-                                refreshToken = tokenStorage.refreshToken!!
+                                refreshToken = currentRefreshToken
                             )
                             tokenStorage.accessToken  = resp.accessToken
                             tokenStorage.tokenExpiryMs = System.currentTimeMillis() + resp.expiresIn * 1000L
@@ -76,6 +77,7 @@ object RedditApiClient {
         "android:com.redditcommentcleaner:v1.0 (by /u/$username)"
 
     private fun loggingInterceptor() = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BASIC
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
+                else HttpLoggingInterceptor.Level.NONE
     }
 }
