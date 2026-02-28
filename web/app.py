@@ -2,40 +2,28 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import praw
 import prawcore
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
+csrf = CSRFProtect(app)
 
 # Log files are kept at the repo root, not inside web/
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Allow importing drive_upload from the repo root
+# Allow importing drive_upload and utils from the repo root
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 from drive_upload import maybe_upload_logs  # noqa: E402
+from utils import _with_retry  # noqa: E402
+
 DELETED_COMMENTS_FILE = os.path.join(BASE_DIR, "deleted_comments.txt")
 DELETED_POSTS_FILE = os.path.join(BASE_DIR, "deleted_posts.txt")
-
-_RETRY_WAIT = (5, 15, 45)
-
-
-def _with_retry(fn, label="operation"):
-    """Call fn(), retrying up to 3 times on rate-limit errors."""
-    for attempt, wait in enumerate(_RETRY_WAIT, start=1):
-        try:
-            return fn()
-        except prawcore.exceptions.TooManyRequests as exc:
-            retry_after = getattr(exc, "retry_after", None) or wait
-            print(f"  Rate limited on {label}. Waiting {retry_after}s (attempt {attempt}/3)…")
-            time.sleep(retry_after)
-        except praw.exceptions.APIException:
-            raise
-    return fn()
 
 
 def make_reddit():
@@ -73,7 +61,11 @@ def login():
         reddit.user.me()
         session.update(creds)
         return redirect(url_for("dashboard"))
-    except Exception as e:
+    except (
+        praw.exceptions.APIException,
+        prawcore.exceptions.OAuthException,
+        prawcore.exceptions.ResponseException,
+    ) as e:
         return render_template("index.html", error=f"Authentication failed: {e}")
 
 
@@ -91,6 +83,7 @@ def dashboard():
 
 
 @app.route("/api/items")
+@csrf.exempt
 def api_items():
     if "username" not in session:
         return jsonify(error="Not authenticated"), 401
@@ -107,7 +100,9 @@ def api_items():
             "score": c.score,
             "subreddit": str(c.subreddit),
             "created_utc": int(c.created_utc),
-            "created_date": datetime.utcfromtimestamp(c.created_utc).strftime("%Y-%m-%d"),
+            "created_date": datetime.fromtimestamp(
+                c.created_utc, tz=timezone.utc
+            ).strftime("%Y-%m-%d"),
             "permalink": "https://reddit.com" + c.permalink,
         })
 
@@ -120,7 +115,9 @@ def api_items():
             "score": s.score,
             "subreddit": str(s.subreddit),
             "created_utc": int(s.created_utc),
-            "created_date": datetime.utcfromtimestamp(s.created_utc).strftime("%Y-%m-%d"),
+            "created_date": datetime.fromtimestamp(
+                s.created_utc, tz=timezone.utc
+            ).strftime("%Y-%m-%d"),
             "num_comments": s.num_comments,
             "permalink": "https://reddit.com" + s.permalink,
         })
@@ -142,46 +139,60 @@ def api_delete():
     deleted_posts = 0
     errors = []
 
-    for cid in comment_ids:
-        try:
-            comment = reddit.comment(cid)
-            with open(DELETED_COMMENTS_FILE, "a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "deleted_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "created_at": datetime.utcfromtimestamp(comment.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "id": comment.name,
-                    "subreddit": str(comment.subreddit),
-                    "score": comment.score,
-                    "permalink": f"https://reddit.com{comment.permalink}",
-                    "body": comment.body,
-                    "source": "web",
-                }) + "\n")
-            _with_retry(lambda: comment.edit("."), "comment edit")
-            _with_retry(comment.delete, "comment delete")
-            deleted_comments += 1
-        except Exception as e:
-            errors.append(f"Comment {cid}: {e}")
+    with open(DELETED_COMMENTS_FILE, "a", encoding="utf-8") as cf:
+        for cid in comment_ids:
+            try:
+                comment = reddit.comment(cid)
+                cf.write(
+                    json.dumps({
+                        "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "created_at": datetime.fromtimestamp(
+                            comment.created_utc, tz=timezone.utc
+                        ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "id": comment.name,
+                        "subreddit": str(comment.subreddit),
+                        "score": comment.score,
+                        "permalink": f"https://reddit.com{comment.permalink}",
+                        "body": comment.body,
+                        "source": "web",
+                    }) + "\n"
+                )
+                _with_retry(lambda: comment.edit("."), "comment edit")
+                _with_retry(comment.delete, "comment delete")
+                deleted_comments += 1
+            except (
+                praw.exceptions.APIException,
+                prawcore.exceptions.PrawcoreException,
+            ) as e:
+                errors.append(f"Comment {cid}: {e}")
 
-    for pid in post_ids:
-        try:
-            submission = reddit.submission(pid)
-            with open(DELETED_POSTS_FILE, "a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "deleted_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "created_at": datetime.utcfromtimestamp(submission.created_utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "id": submission.name,
-                    "subreddit": submission.subreddit.display_name,
-                    "score": submission.score,
-                    "title": submission.title,
-                    "permalink": f"https://reddit.com{submission.permalink}",
-                    "num_comments": submission.num_comments,
-                    "source": "web",
-                }) + "\n")
-            _with_retry(lambda: submission.edit("."), "post edit")
-            _with_retry(submission.delete, "post delete")
-            deleted_posts += 1
-        except Exception as e:
-            errors.append(f"Post {pid}: {e}")
+    with open(DELETED_POSTS_FILE, "a", encoding="utf-8") as pf:
+        for pid in post_ids:
+            try:
+                submission = reddit.submission(pid)
+                pf.write(
+                    json.dumps({
+                        "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "created_at": datetime.fromtimestamp(
+                            submission.created_utc, tz=timezone.utc
+                        ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "id": submission.name,
+                        "subreddit": submission.subreddit.display_name,
+                        "score": submission.score,
+                        "title": submission.title,
+                        "permalink": f"https://reddit.com{submission.permalink}",
+                        "num_comments": submission.num_comments,
+                        "source": "web",
+                    }) + "\n"
+                )
+                _with_retry(lambda: submission.edit("."), "post edit")
+                _with_retry(submission.delete, "post delete")
+                deleted_posts += 1
+            except (
+                praw.exceptions.APIException,
+                prawcore.exceptions.PrawcoreException,
+            ) as e:
+                errors.append(f"Post {pid}: {e}")
 
     drive_links = maybe_upload_logs(DELETED_COMMENTS_FILE, DELETED_POSTS_FILE)
 
@@ -194,4 +205,4 @@ def api_delete():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1", port=5000)
