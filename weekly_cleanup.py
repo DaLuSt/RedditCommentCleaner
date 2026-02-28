@@ -24,11 +24,30 @@ Usage:
 import argparse
 import json
 import os
+import time
 from datetime import datetime, timezone
 
 import praw
+import prawcore
 
 from drive_upload import maybe_upload_logs
+
+_RETRY_WAIT = (5, 15, 45)
+
+
+def _with_retry(fn, label="operation"):
+    """Call fn(), retrying up to 3 times on rate-limit errors."""
+    for attempt, wait in enumerate(_RETRY_WAIT, start=1):
+        try:
+            return fn()
+        except prawcore.exceptions.TooManyRequests as exc:
+            retry_after = getattr(exc, "retry_after", None) or wait
+            print(f"  Rate limited on {label}. Waiting {retry_after}s (attempt {attempt}/3)…")
+            time.sleep(retry_after)
+        except praw.exceptions.APIException:
+            raise
+    return fn()
+
 
 AGE_THRESHOLD_DAYS = 14
 
@@ -105,11 +124,11 @@ def main(dry_run: bool = False):
                         "source": "ci",
                     }) + "\n")
                 try:
-                    comment.edit(".")
-                    comment.delete()
+                    _with_retry(lambda: comment.edit("."), "comment edit")
+                    _with_retry(comment.delete, "comment delete")
                     comments_deleted += 1
                     print(f"  Deleted comment (score={comment.score}) in r/{comment.subreddit}")
-                except praw.exceptions.APIException as e:
+                except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                     print(f"  Error deleting comment {comment.id}: {e}")
 
     # ── Posts ─────────────────────────────────────────────────────────────
@@ -133,11 +152,11 @@ def main(dry_run: bool = False):
                         "source": "ci",
                     }) + "\n")
                 try:
-                    submission.edit(".")
-                    submission.delete()
+                    _with_retry(lambda: submission.edit("."), "post edit")
+                    _with_retry(submission.delete, "post delete")
                     posts_deleted += 1
                     print(f"  Deleted post '{submission.title}' (score={submission.score}) in r/{submission.subreddit}")
-                except praw.exceptions.APIException as e:
+                except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                     print(f"  Error deleting post {submission.id}: {e}")
 
     if dry_run:
