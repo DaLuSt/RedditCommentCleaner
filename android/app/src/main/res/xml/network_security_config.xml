@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network security configuration.
+
+    - cleartextTrafficPermitted="false"  — blocks plain HTTP app-wide.
+    - Only the system certificate store is trusted (no user-installed CAs).
+      This protects OAuth tokens from interception via rogue user CAs.
+
+    Certificate pinning is intentionally omitted: Reddit rotates TLS
+    certificates periodically and pinning without an automated update
+    process would cause the app to stop working after a rotation.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
