@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 from datetime import datetime, timezone
 
 import praw
@@ -8,21 +7,17 @@ import prawcore
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_wtf.csrf import CSRFProtect
 
+from redditcleaner.drive_upload import maybe_upload_logs
+from redditcleaner.utils import _with_retry
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
 csrf = CSRFProtect(app)
 
-# Log files are kept at the repo root, not inside web/
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# Allow importing drive_upload and utils from the repo root
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
-from drive_upload import maybe_upload_logs  # noqa: E402
-from utils import _with_retry  # noqa: E402
-
-DELETED_COMMENTS_FILE = os.path.join(BASE_DIR, "deleted_comments.txt")
-DELETED_POSTS_FILE = os.path.join(BASE_DIR, "deleted_posts.txt")
+# Log files are written to LOG_DIR (defaults to current working directory)
+LOG_DIR = os.environ.get("LOG_DIR", os.getcwd())
+DELETED_COMMENTS_FILE = os.path.join(LOG_DIR, "deleted_comments.txt")
+DELETED_POSTS_FILE = os.path.join(LOG_DIR, "deleted_posts.txt")
 
 
 def make_reddit():

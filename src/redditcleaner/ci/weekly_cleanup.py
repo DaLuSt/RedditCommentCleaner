@@ -8,7 +8,7 @@ Deletion criteria (either condition triggers deletion):
 Credential resolution order:
     1. Environment variables (REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET,
        REDDIT_USERNAME, REDDIT_PASSWORD)
-    2. Credentials.txt in the same directory (four lines: client_id,
+    2. Credentials.txt in the current working directory (four lines: client_id,
        client_secret, username, password)
 
 Optional environment variables:
@@ -17,37 +17,20 @@ Optional environment variables:
     DRY_RUN                     set to "1" to preview deletions without making changes
 
 Usage:
-    python weekly_cleanup.py             # normal run
-    python weekly_cleanup.py --dry-run   # preview only, nothing deleted
+    python -m redditcleaner.ci.weekly_cleanup             # normal run
+    python -m redditcleaner.ci.weekly_cleanup --dry-run   # preview only, nothing deleted
 """
 
 import argparse
 import json
 import os
-import time
 from datetime import datetime, timezone
 
 import praw
 import prawcore
 
-from drive_upload import maybe_upload_logs
-
-_RETRY_WAIT = (5, 15, 45)
-
-
-def _with_retry(fn, label="operation"):
-    """Call fn(), retrying up to 3 times on rate-limit errors."""
-    for attempt, wait in enumerate(_RETRY_WAIT, start=1):
-        try:
-            return fn()
-        except prawcore.exceptions.TooManyRequests as exc:
-            retry_after = getattr(exc, "retry_after", None) or wait
-            print(f"  Rate limited on {label}. Waiting {retry_after}s (attempt {attempt}/3)…")
-            time.sleep(retry_after)
-        except praw.exceptions.APIException:
-            raise
-    return fn()
-
+from redditcleaner.drive_upload import maybe_upload_logs
+from redditcleaner.utils import _with_retry
 
 AGE_THRESHOLD_DAYS = 14
 
@@ -65,7 +48,7 @@ def _load_credentials():
     if all([client_id, client_secret, username, password]):
         return client_id, client_secret, username, password
 
-    cred_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Credentials.txt")
+    cred_path = os.path.join(os.getcwd(), "Credentials.txt")
     if os.path.exists(cred_path):
         with open(cred_path, encoding="utf-8") as f:
             lines = [line.strip() for line in f.readlines()]

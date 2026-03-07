@@ -1,17 +1,13 @@
 """Tests for weekly_cleanup.py — _should_delete and _load_credentials."""
 
 import os
-import sys
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
-# Ensure repo root is importable
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from weekly_cleanup import AGE_THRESHOLD_DAYS, _load_credentials, _should_delete
+from redditcleaner.ci.weekly_cleanup import AGE_THRESHOLD_DAYS, _load_credentials, _should_delete
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -74,8 +70,8 @@ class TestLoadCredentials:
         monkeypatch.delenv("REDDIT_USERNAME",       raising=False)
         monkeypatch.delenv("REDDIT_PASSWORD",       raising=False)
 
-        with patch("weekly_cleanup.os.path.join", return_value=str(cred_file)), \
-             patch("weekly_cleanup.os.path.exists", return_value=True):
+        with patch("redditcleaner.ci.weekly_cleanup.os.path.join", return_value=str(cred_file)), \
+             patch("redditcleaner.ci.weekly_cleanup.os.path.exists", return_value=True):
             result = _load_credentials()
 
         assert result == ("fileid", "filesecret", "fileuser", "filepass")
@@ -86,7 +82,7 @@ class TestLoadCredentials:
         monkeypatch.delenv("REDDIT_USERNAME",       raising=False)
         monkeypatch.delenv("REDDIT_PASSWORD",       raising=False)
 
-        with patch("weekly_cleanup.os.path.exists", return_value=False):
+        with patch("redditcleaner.ci.weekly_cleanup.os.path.exists", return_value=False):
             with pytest.raises(RuntimeError, match="Reddit credentials not found"):
                 _load_credentials()
 
@@ -100,8 +96,8 @@ class TestLoadCredentials:
         cred_file = tmp_path / "Credentials.txt"
         cred_file.write_text("a\nb\nc\nd\n", encoding="utf-8")
 
-        with patch("weekly_cleanup.os.path.join", return_value=str(cred_file)), \
-             patch("weekly_cleanup.os.path.exists", return_value=True):
+        with patch("redditcleaner.ci.weekly_cleanup.os.path.join", return_value=str(cred_file)), \
+             patch("redditcleaner.ci.weekly_cleanup.os.path.exists", return_value=True):
             result = _load_credentials()
 
         assert result == ("a", "b", "c", "d")
