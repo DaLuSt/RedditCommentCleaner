@@ -13,3 +13,4 @@ __pycache__/
 # Flask session / instance folder
 instance/
 flask_session/
+src/redditcleaner.egg-info/

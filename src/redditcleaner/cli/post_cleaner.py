@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 import praw
 import prawcore
 
-from drive_upload import maybe_upload_logs
-from utils import (
+from redditcleaner.drive_upload import maybe_upload_logs
+from redditcleaner.utils import (
     _with_retry,
     confirm_and_run,
     get_days_old,

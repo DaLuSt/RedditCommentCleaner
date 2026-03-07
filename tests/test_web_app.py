@@ -1,18 +1,10 @@
 """Tests for the Flask web application (web/app.py)."""
 
-import os
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Ensure repo root on path so drive_upload is importable from web/app.py
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# web/app.py does sys.path manipulation itself, but we need the module importable
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web"))
-
-from app import app as flask_app
+from redditcleaner.web.app import app as flask_app
 
 
 @pytest.fixture
@@ -98,7 +90,7 @@ class TestApiItems:
         mock_reddit.redditor.return_value.comments.new.return_value  = [mock_comment]
         mock_reddit.redditor.return_value.submissions.new.return_value = []
 
-        with patch("app.praw.Reddit", return_value=mock_reddit):
+        with patch("redditcleaner.web.app.praw.Reddit", return_value=mock_reddit):
             resp = authed_client.get("/api/items")
 
         assert resp.status_code == 200
@@ -116,8 +108,8 @@ class TestApiDelete:
         assert resp.status_code == 401
 
     def test_deletes_comment(self, authed_client, tmp_path, monkeypatch):
-        monkeypatch.setattr("app.DELETED_COMMENTS_FILE", str(tmp_path / "deleted_comments.txt"))
-        monkeypatch.setattr("app.DELETED_POSTS_FILE",    str(tmp_path / "deleted_posts.txt"))
+        monkeypatch.setattr("redditcleaner.web.app.DELETED_COMMENTS_FILE", str(tmp_path / "deleted_comments.txt"))
+        monkeypatch.setattr("redditcleaner.web.app.DELETED_POSTS_FILE",    str(tmp_path / "deleted_posts.txt"))
 
         mock_comment = MagicMock()
         mock_comment.created_utc = 1700000000.0
@@ -130,8 +122,8 @@ class TestApiDelete:
         mock_reddit = MagicMock()
         mock_reddit.comment.return_value = mock_comment
 
-        with patch("app.praw.Reddit", return_value=mock_reddit), \
-             patch("app.maybe_upload_logs", return_value=[]):
+        with patch("redditcleaner.web.app.praw.Reddit", return_value=mock_reddit), \
+             patch("redditcleaner.web.app.maybe_upload_logs", return_value=[]):
             resp = authed_client.post("/api/delete", json={"comment_ids": ["abc"], "post_ids": []})
 
         assert resp.status_code == 200

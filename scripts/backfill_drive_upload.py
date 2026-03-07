@@ -26,12 +26,7 @@ import sys
 import tempfile
 import zipfile
 
-# Allow importing drive_upload from the repo root when run from any directory.
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-
-from drive_upload import upload_logs  # noqa: E402
+from redditcleaner.drive_upload import upload_logs
 
 
 def _gh_api(path: str) -> dict:
