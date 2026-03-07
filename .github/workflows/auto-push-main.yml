@@ -1,0 +1,60 @@
+name: Auto Push to Main
+
+on:
+  push:
+    branches: [testing]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  lint-test-merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # needed for ahead/behind check
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          pip install ruff
+          pip install -r tests/requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Tests (pytest)
+        run: pytest tests/ -v
+
+      - name: Check if testing is ahead of main
+        id: ahead_check
+        run: |
+          git fetch origin main
+          AHEAD=$(git rev-list origin/main..HEAD --count)
+          echo "ahead=$AHEAD" >> "$GITHUB_OUTPUT"
+
+      - name: Create PR (testing → main)
+        if: steps.ahead_check.outputs.ahead != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --base main \
+            --head testing \
+            --title "Auto-merge: testing → main (run #${{ github.run_number }})" \
+            --body "Automatically created by **Auto Push to Main** workflow after lint and tests passed on the \`testing\` branch." \
+          || echo "PR already exists — will merge existing PR"
+
+      - name: Merge PR into main
+        if: steps.ahead_check.outputs.ahead != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge testing --merge --delete-branch=false
