@@ -1,4 +1,0 @@
-praw>=7.6,<8
-google-api-python-client>=2.0,<3
-google-auth>=2.0,<3
-google-auth-httplib2>=0.1,<1

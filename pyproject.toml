@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redditcleaner"
+version = "1.8.0"
+requires-python = ">=3.9"
+dependencies = [
+    "praw>=7.6,<8",
+]
+
+[project.optional-dependencies]
+drive = [
+    "google-api-python-client>=2.0,<3",
+    "google-auth>=2.0,<3",
+    "google-auth-httplib2>=0.1,<1",
+]
+web = [
+    "flask>=2.3,<4",
+    "flask-wtf>=1.1,<2",
+    "google-api-python-client>=2.0,<3",
+    "google-auth>=2.0,<3",
+    "google-auth-httplib2>=0.1,<1",
+]
+dev = [
+    "pytest>=7.0,<9",
+    "pytest-mock>=3.0,<4",
+    "flask>=2.3,<4",
+    "flask-wtf>=1.1,<2",
+    "ruff",
+]
+
+[project.scripts]
+reddit-clean-comments = "redditcleaner.cli.comment_cleaner:main"
+reddit-clean-posts    = "redditcleaner.cli.post_cleaner:main"
+reddit-weekly-cleanup = "redditcleaner.ci.weekly_cleanup:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"redditcleaner.web" = ["templates/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
