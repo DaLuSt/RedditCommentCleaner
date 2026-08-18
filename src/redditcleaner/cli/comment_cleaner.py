@@ -7,8 +7,9 @@ import praw
 import prawcore
 
 from redditcleaner.utils import (
-    _with_retry,
+    build_deletion_record,
     confirm_and_run,
+    edit_and_delete,
     get_days_old,
     get_reddit_credentials,
     initialize_reddit,
@@ -54,23 +55,9 @@ def delete_old_comments(reddit, username, days_old, comments_deleted, *, dry_run
                 comments_deleted.append(comment)
                 continue
 
-            log_file.write(
-                json.dumps({
-                    "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "created_at": datetime.fromtimestamp(
-                        comment.created_utc, tz=timezone.utc
-                    ).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "id": comment.name,
-                    "subreddit": str(comment.subreddit),
-                    "score": comment.score,
-                    "permalink": f"https://reddit.com{comment.permalink}",
-                    "body": comment.body,
-                    "source": "cli-mode-1",
-                }) + "\n"
-            )
+            log_file.write(json.dumps(build_deletion_record(comment, "comment", "cli-mode-1")) + "\n")
             try:
-                _with_retry(lambda: comment.edit("."), "comment edit")
-                _with_retry(comment.delete, "comment delete")
+                edit_and_delete(comment, "comment")
                 comments_deleted.append(comment)
             except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"\n  Error deleting comment: {e}")
@@ -108,23 +95,9 @@ def remove_comments_with_negative_karma(reddit, username, comments_deleted, *, d
                 comments_deleted.append(comment)
                 continue
 
-            log_file.write(
-                json.dumps({
-                    "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "created_at": datetime.fromtimestamp(
-                        comment.created_utc, tz=timezone.utc
-                    ).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "id": comment.name,
-                    "subreddit": str(comment.subreddit),
-                    "score": comment.score,
-                    "permalink": f"https://reddit.com{comment.permalink}",
-                    "body": comment.body,
-                    "source": "cli-mode-2",
-                }) + "\n"
-            )
+            log_file.write(json.dumps(build_deletion_record(comment, "comment", "cli-mode-2")) + "\n")
             try:
-                _with_retry(lambda: comment.edit("."), "comment edit")
-                _with_retry(comment.delete, "comment delete")
+                edit_and_delete(comment, "comment")
                 comments_deleted.append(comment)
             except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"\n  Error removing comment: {e}")
@@ -170,21 +143,9 @@ def remove_comments_with_one_karma_and_no_replies(
                 comments_deleted.append(comment)
                 continue
 
-            log_file.write(
-                json.dumps({
-                    "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "created_at": created.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "id": comment.name,
-                    "subreddit": str(comment.subreddit),
-                    "score": comment.score,
-                    "permalink": f"https://reddit.com{comment.permalink}",
-                    "body": comment.body,
-                    "source": "cli-mode-3",
-                }) + "\n"
-            )
+            log_file.write(json.dumps(build_deletion_record(comment, "comment", "cli-mode-3")) + "\n")
             try:
-                _with_retry(lambda: comment.edit("."), "comment edit")
-                _with_retry(comment.delete, "comment delete")
+                edit_and_delete(comment, "comment")
                 comments_deleted.append(comment)
             except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
                 print(f"\n  Error removing comment: {e}")

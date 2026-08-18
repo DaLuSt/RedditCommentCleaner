@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 import praw
 import prawcore
 
-from redditcleaner.utils import _with_retry
+from redditcleaner.utils import build_deletion_record, edit_and_delete
 
 AGE_THRESHOLD_DAYS = 14
 
@@ -93,19 +93,9 @@ def main(dry_run: bool = False):
                 print(f"  [DRY RUN] Would delete comment (score={comment.score}) in r/{comment.subreddit}: {comment.body[:80]!r}")
             else:
                 with open("deleted_comments.txt", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({
-                        "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "created_at": datetime.fromtimestamp(comment.created_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "id": comment.name,
-                        "subreddit": str(comment.subreddit),
-                        "score": comment.score,
-                        "permalink": f"https://reddit.com{comment.permalink}",
-                        "body": comment.body,
-                        "source": "ci",
-                    }) + "\n")
+                    f.write(json.dumps(build_deletion_record(comment, "comment", "ci")) + "\n")
                 try:
-                    _with_retry(lambda: comment.edit("."), "comment edit")
-                    _with_retry(comment.delete, "comment delete")
+                    edit_and_delete(comment, "comment")
                     comments_deleted += 1
                     print(f"  Deleted comment (score={comment.score}) in r/{comment.subreddit}")
                 except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:
@@ -120,20 +110,9 @@ def main(dry_run: bool = False):
                 print(f"  [DRY RUN] Would delete post '{submission.title}' (score={submission.score}) in r/{submission.subreddit}")
             else:
                 with open("deleted_posts.txt", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({
-                        "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "created_at": datetime.fromtimestamp(submission.created_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "id": submission.name,
-                        "subreddit": submission.subreddit.display_name,
-                        "score": submission.score,
-                        "title": submission.title,
-                        "permalink": f"https://reddit.com{submission.permalink}",
-                        "num_comments": submission.num_comments,
-                        "source": "ci",
-                    }) + "\n")
+                    f.write(json.dumps(build_deletion_record(submission, "post", "ci")) + "\n")
                 try:
-                    _with_retry(lambda: submission.edit("."), "post edit")
-                    _with_retry(submission.delete, "post delete")
+                    edit_and_delete(submission, "post")
                     posts_deleted += 1
                     print(f"  Deleted post '{submission.title}' (score={submission.score}) in r/{submission.subreddit}")
                 except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:

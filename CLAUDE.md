@@ -5,14 +5,14 @@
 RedditCommentCleaner is a Python tool that allows Reddit users to bulk-delete their own comments and posts using the [PRAW](https://praw.readthedocs.io/) (Python Reddit API Wrapper) library. Before deletion, each item is edited to `"."` to prevent content-scraping tools from capturing the original text.
 
 It ships in four forms:
-- **CLI scripts** — interactive terminal tools (`commentCleaner.py`, `PostCleaner.py`)
-- **Web app** — browser-based dashboard for filtering and selectively deleting items (`web/`)
+- **CLI scripts** — interactive terminal tools (`redditcleaner.cli.comment_cleaner`, `redditcleaner.cli.post_cleaner`)
+- **Web app** — browser-based dashboard for filtering and selectively deleting items (`redditcleaner.web.app`)
 - **Android app** — native Kotlin app with OAuth PKCE flow (`android/`)
-- **CI/CD** — automated weekly GitHub Actions run that deletes all items with score < 1
+- **CI/CD** — automated weekly GitHub Actions run that deletes items with score < 1 (or score == 1 and older than 14 days)
 
-**Current version:** 1.8
+**Current version:** 1.8.0
 **Language:** Python 3 (CLI/web/CI), Kotlin (Android)
-**Dependencies:** `praw` (CLI/CI), `praw` + `flask` + `flask-wtf` (web app)
+**Packaging:** standard `src/` layout, installed via `pyproject.toml` (setuptools). No `requirements.txt` files — dependencies live in `[project.dependencies]` / `[project.optional-dependencies]`.
 
 ---
 
@@ -20,17 +20,22 @@ It ships in four forms:
 
 ```
 RedditCommentCleaner/
-├── commentCleaner.py              # CLI — comment deletion (3 modes)
-├── PostCleaner.py                 # CLI — post/submission deletion
-├── weekly_cleanup.py              # CI script — automated cleanup (score < 1)
-├── utils.py                       # Shared: _with_retry, credentials, reddit init
-├── requirements.txt               # CLI/CI deps: praw
-├── web/
-│   ├── app.py                     # Flask web application (CSRF-protected)
-│   ├── requirements.txt           # flask, flask-wtf, praw
-│   └── templates/
-│       ├── index.html             # Login page
-│       └── dashboard.html         # Main dashboard UI
+├── pyproject.toml                 # Package metadata, dependencies, console-script entry points
+├── ruff.toml                      # Lint config (E, F, W; line length unenforced)
+├── src/
+│   └── redditcleaner/
+│       ├── __init__.py            # __version__
+│       ├── utils.py                # Shared: _with_retry, credentials, reddit init
+│       ├── cli/
+│       │   ├── comment_cleaner.py  # CLI — comment deletion (3 modes)
+│       │   └── post_cleaner.py     # CLI — post/submission deletion
+│       ├── ci/
+│       │   └── weekly_cleanup.py   # CI script — automated cleanup
+│       └── web/
+│           ├── app.py              # Flask web application (CSRF-protected)
+│           └── templates/
+│               ├── index.html      # Login page
+│               └── dashboard.html  # Main dashboard UI
 ├── android/                       # Native Android app (Kotlin + OAuth PKCE)
 │   ├── SETUP.md                   # Build and run instructions
 │   └── app/src/main/java/com/redditcommentcleaner/
@@ -38,16 +43,19 @@ RedditCommentCleaner/
 │       ├── api/                   # RedditApiClient, RedditApiService
 │       ├── dashboard/             # DashboardActivity, DashboardViewModel
 │       └── util/                  # TokenStorage, PkceHelper
-├── tests/
-│   └── requirements.txt           # pytest, pytest-mock, flask, praw
+├── tests/                         # pytest suite (mirrors src/ layout)
+│   ├── conftest.py
+│   ├── test_web_app.py
+│   └── test_weekly_cleanup.py
 ├── .github/
 │   └── workflows/
-│       └── weekly-cleanup.yml     # GitHub Actions — runs weekly_cleanup.py
+│       └── weekly-cleanup.yml     # GitHub Actions — runs redditcleaner.ci.weekly_cleanup
 ├── .gitignore
 ├── README.md
-├── SECURITY.md
-└── Credentials.txt                # (NOT in repo) User-supplied credentials
+└── SECURITY.md
 ```
+
+Runtime files not tracked in git (`Credentials.txt`, if used) and log files (`deleted_comments.txt`, `deleted_posts.txt`) are covered by `.gitignore`.
 
 ### Runtime-generated files (excluded by `.gitignore`)
 
@@ -59,40 +67,37 @@ RedditCommentCleaner/
 
 ---
 
-## Dependencies
+## Installing
 
-### CLI scripts (`commentCleaner.py`, `PostCleaner.py`, `weekly_cleanup.py`)
 ```bash
-pip install -r requirements.txt   # praw
+pip install -e .            # CLI + CI only (praw)
+pip install -e ".[web]"     # + Flask web app (flask, flask-wtf)
+pip install -e ".[dev]"     # + test/lint tooling (pytest, pytest-mock, ruff, flask, flask-wtf)
 ```
 
-### Web app (`web/`)
-```bash
-pip install -r web/requirements.txt   # flask, flask-wtf, praw
-```
+This registers three console scripts (see `[project.scripts]` in `pyproject.toml`):
 
-### Tests
-```bash
-pip install -r tests/requirements.txt   # pytest, pytest-mock, flask, praw
-```
+| Command | Runs |
+|---|---|
+| `reddit-clean-comments` | `redditcleaner.cli.comment_cleaner:main` |
+| `reddit-clean-posts` | `redditcleaner.cli.post_cleaner:main` |
+| `reddit-weekly-cleanup` | `redditcleaner.ci.weekly_cleanup:main` |
 
-No `pyproject.toml`, Poetry, or Pipenv files exist.
+Each module is also runnable directly, e.g. `python -m redditcleaner.cli.comment_cleaner`.
 
 ---
 
-## Shared Module — `utils.py`
+## Shared Module — `src/redditcleaner/utils.py`
 
-`utils.py` (repo root) is imported by both CLI scripts and `web/app.py`. It contains:
+Imported by both CLI scripts and `web/app.py`. It contains:
 
 | Symbol | Purpose |
 |--------|---------|
 | `_with_retry(fn, label)` | Calls `fn()`, retrying up to 3 times on `TooManyRequests` |
-| `get_reddit_credentials()` | Reads `Credentials.txt` or falls back to `input()` prompts |
+| `get_reddit_credentials()` | Reads `Credentials.txt` or falls back to `input()` prompts; always returns a 4-tuple `(client_id, client_secret, username, password)` |
 | `confirm_and_run()` | Asks the user yes/no before running |
-| `initialize_reddit(...)` | Creates and verifies a PRAW Reddit instance; catches `OAuthException` and `ResponseException` in addition to `APIException` |
+| `initialize_reddit(...)` | Creates and verifies a PRAW Reddit instance; catches `APIException`, `OAuthException`, and `ResponseException` |
 | `get_days_old(prompt)` | Prompts for an integer age threshold |
-
-`web/app.py` adds `BASE_DIR` to `sys.path` before importing `utils`.
 
 ---
 
@@ -125,7 +130,7 @@ Store as repository secrets (Settings → Secrets and variables → Actions):
 
 ## Scripts
 
-### `commentCleaner.py`
+### `src/redditcleaner/cli/comment_cleaner.py`
 
 Interactive CLI offering three deletion modes:
 
@@ -133,39 +138,39 @@ Interactive CLI offering three deletion modes:
 |--------|--------|
 | 1 | Delete all comments older than N days |
 | 2 | Delete all comments with score ≤ 0 |
-| 3 | Delete comments with score ≤ 1, no replies, older than 7 days |
+| 3 | Delete comments with score ≤ 1, no replies, older than 7 days (calls `comment.refresh()` so `comment.replies` is actually populated) |
 
 Supports `--dry-run` flag to preview deletions without making changes.
 
 **Flow:** load credentials → confirm → authenticate → loop (choose mode → run → report) → quit
 
-### `PostCleaner.py`
+### `src/redditcleaner/cli/post_cleaner.py`
 
-Single-pass CLI that deletes all posts older than N days.
+Single-pass CLI that deletes all posts older than N days (`edit(".")` then `delete()`, once, with retry — no double-deletion).
 
 Supports `--dry-run` flag.
 
 **Flow:** load credentials → confirm → authenticate → prompt for age → `delete_old_posts`
 
-### `weekly_cleanup.py`
+### `src/redditcleaner/ci/weekly_cleanup.py`
 
-Non-interactive script designed for CI. Reads credentials from environment variables and deletes all comments **and** posts with `score < 1` or `score == 1` AND older than 14 days. Logs each deleted item to `deleted_comments.txt` / `deleted_posts.txt`.
+Non-interactive script designed for CI. Reads credentials from environment variables (falling back to `Credentials.txt`) and deletes all comments **and** posts with `score < 1` or `score == 1` AND older than 14 days. Logs each deleted item to `deleted_comments.txt` / `deleted_posts.txt`.
 
 Supports `--dry-run` flag (or `DRY_RUN=1` env var).
 
 ---
 
-## Web App (`web/`)
+## Web App (`src/redditcleaner/web/`)
 
 ### Running
 
 ```bash
-pip install -r web/requirements.txt
-python web/app.py
+pip install -e ".[web]"
+python -m redditcleaner.web.app
 # Open http://localhost:5000
 ```
 
-To enable debug mode: `FLASK_DEBUG=1 python web/app.py`
+To enable debug mode: `FLASK_DEBUG=1 python -m redditcleaner.web.app`
 
 ### Routes
 
@@ -188,9 +193,9 @@ To enable debug mode: `FLASK_DEBUG=1 python web/app.py`
 
 ### Architecture notes
 
-- `web/app.py` uses `os.path.dirname(__file__)` to locate the repo root, so log files are always written to the repo root regardless of which directory you run Flask from.
+- `LOG_DIR` env var controls where `deleted_comments.txt` / `deleted_posts.txt` are written; defaults to the current working directory.
 - Credentials are kept in a Flask session (server-side) and never sent to the browser.
-- CSRF protection is provided by **Flask-WTF** (`CSRFProtect`). The login form includes a hidden `csrf_token` field; the dashboard's `fetch('/api/delete')` call sends the token in the `X-CSRFToken` header (read from the `<meta name="csrf-token">` tag).
+- CSRF protection is provided by **Flask-WTF** (`CSRFProtect`). The login form includes a hidden `csrf_token` field. `/api/items` is `@csrf.exempt` (GET, read-only); `/api/delete` is a state-changing POST and is CSRF-protected — the dashboard's `fetch('/api/delete')` call sends the token in the `X-CSRFToken` header (read from the `<meta name="csrf-token">` tag).
 - All PRAW calls are synchronous. For accounts with thousands of items, the initial `/api/items` request may take 30–60 seconds.
 
 ---
@@ -217,67 +222,59 @@ Key characteristics:
 
 **What it does:**
 1. Checks out the repo
-2. Installs dependencies from `requirements.txt`
-3. Runs `python weekly_cleanup.py` with Reddit credentials from repository secrets
+2. Installs the package (`pip install -e .`)
+3. Runs `python -m redditcleaner.ci.weekly_cleanup` with Reddit credentials from repository secrets
 4. Uploads `deleted_comments.txt` and `deleted_posts.txt` as workflow artifacts (retained 90 days)
 
 **Criteria:** deletes all comments and posts where `score < 1` OR (`score == 1` AND older than 14 days).
 
 ---
 
-## Known Bugs and Issues
-
-These are pre-existing issues in the original codebase. Do not silently fix them without a deliberate change request.
-
-1. **`PostCleaner.py` — double deletion and invalid method** (`delete_old_posts`, lines 102–116):
-   `submission.delete()` is called before `submission.edit(".")`, then a second `try` block re-attempts both on an already-deleted object. `submission.append(submission)` is not a valid PRAW method and raises `AttributeError`. *(Separate PR: `claude/fix-postcleaner-bugs-7Wp79`)*
-
-2. **`get_reddit_credentials` return-value inconsistency** (both CLI files):
-   File-read path returns a 4-tuple; interactive fallback returns a 5-tuple with a spurious `validate_on_submit` element. *(Separate PR: `claude/fix-credentials-tuple-7Wp79`)*
-
-3. **`remove_comments_with_one_karma_and_no_replies` — replies never populated:**
-   PRAW does not populate `comment.replies` for listing results. Without `comment.refresh()`, the check always sees 0 replies and over-deletes. *(Separate PR: `claude/fix-comment-replies-refresh-7Wp79`)*
-
----
-
 ## Running Everything
 
 ```bash
+# Install (pick the extra you need)
+pip install -e ".[dev]"
+
 # Interactive comment cleaner
-python commentCleaner.py
+python -m redditcleaner.cli.comment_cleaner
+# or, after install: reddit-clean-comments
 
 # Dry-run preview (no deletions)
-python commentCleaner.py --dry-run
+python -m redditcleaner.cli.comment_cleaner --dry-run
 
 # Interactive post cleaner
-python PostCleaner.py
+python -m redditcleaner.cli.post_cleaner
 
 # Automated cleanup (CI-style, uses env vars)
 REDDIT_CLIENT_ID=... REDDIT_CLIENT_SECRET=... REDDIT_USERNAME=... REDDIT_PASSWORD=... \
-  python weekly_cleanup.py
+  python -m redditcleaner.ci.weekly_cleanup
 
 # Dry-run the CI cleanup
-python weekly_cleanup.py --dry-run
+python -m redditcleaner.ci.weekly_cleanup --dry-run
 
 # Web app
-pip install -r web/requirements.txt
-python web/app.py   # then open http://localhost:5000
+pip install -e ".[web]"
+python -m redditcleaner.web.app   # then open http://localhost:5000
 
 # Run tests
-pip install -r tests/requirements.txt
+pip install -e ".[dev]"
 pytest tests/
+
+# Lint
+ruff check .
 ```
 
 ---
 
 ## Development Conventions
 
-- **Python version:** Python 3 (no pin; standard library uses `datetime`, `time`, `os`)
-- **Style:** No linter config. Google-style docstrings (`Args:`, `Returns:`, `Notes:`).
-- **Test suite:** `tests/` — run with `pytest`. Uses `pytest-mock` to mock PRAW objects.
-- **CI/CD:** GitHub Actions workflow added (`weekly-cleanup.yml`). No other pipelines.
+- **Python version:** `>=3.9` (see `pyproject.toml`); standard library uses `datetime`, `time`, `os`
+- **Style:** `ruff` (see `ruff.toml`) for lint (`E`, `F`, `W`; line length unenforced). Google-style docstrings (`Args:`, `Returns:`, `Notes:`).
+- **Test suite:** `tests/` — run with `pytest` (config in `pyproject.toml`'s `[tool.pytest.ini_options]`). Uses `pytest-mock` / `unittest.mock` to mock PRAW objects.
+- **CI/CD:** GitHub Actions workflow (`weekly-cleanup.yml`). No other pipelines.
 - **Error handling:** Auth failures catch `praw.exceptions.APIException`, `prawcore.exceptions.OAuthException`, and `prawcore.exceptions.ResponseException`. Rate limits retry via `_with_retry()`. Auth failure calls `exit()` in CLI scripts; returns HTTP 401 in the web app.
-- **Encoding:** All file writes use `encoding="utf-8"` explicitly.
+- **Encoding:** File writes use `encoding="utf-8"` explicitly.
 - **Datetimes:** All timestamps use `datetime.now(timezone.utc)` and `datetime.fromtimestamp(..., tz=timezone.utc)` — never the deprecated `utcnow()` / `utcfromtimestamp()`.
 - **`user_agent`:** Hardcoded as `'commentCleaner'` everywhere.
 
