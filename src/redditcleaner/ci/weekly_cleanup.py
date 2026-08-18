@@ -12,8 +12,6 @@ Credential resolution order:
        client_secret, username, password)
 
 Optional environment variables:
-    GOOGLE_SERVICE_ACCOUNT_KEY  path to service-account JSON, or the JSON string itself
-    GOOGLE_DRIVE_FOLDER_ID      ID of the Drive folder to upload logs into
     DRY_RUN                     set to "1" to preview deletions without making changes
 
 Usage:
@@ -29,7 +27,6 @@ from datetime import datetime, timezone
 import praw
 import prawcore
 
-from redditcleaner.drive_upload import maybe_upload_logs
 from redditcleaner.utils import _with_retry
 
 AGE_THRESHOLD_DAYS = 14
@@ -146,9 +143,6 @@ def main(dry_run: bool = False):
         print("\nDry run complete — nothing was deleted.")
     else:
         print(f"\nDone. Deleted {comments_deleted} comment(s) and {posts_deleted} post(s).")
-        print("\nUploading logs to Google Drive…")
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        maybe_upload_logs("deleted_comments.txt", "deleted_posts.txt", date_suffix=today)
 
 
 if __name__ == "__main__":

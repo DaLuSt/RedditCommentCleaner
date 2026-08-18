@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 import praw
 import prawcore
 
-from redditcleaner.drive_upload import maybe_upload_logs
 from redditcleaner.utils import (
     _with_retry,
     confirm_and_run,
@@ -96,8 +95,6 @@ def main():
     reddit = initialize_reddit(client_id, client_secret, username, password)
     days_old = get_days_old("Enter how old (in days) the posts should be: ")
     delete_old_posts(reddit, username, days_old, dry_run=args.dry_run)
-    if not args.dry_run:
-        maybe_upload_logs("deleted_posts.txt")
 
 
 if __name__ == "__main__":

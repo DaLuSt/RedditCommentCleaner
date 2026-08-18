@@ -24,11 +24,10 @@ RedditCommentCleaner/
 ├── PostCleaner.py                 # CLI — post/submission deletion
 ├── weekly_cleanup.py              # CI script — automated cleanup (score < 1)
 ├── utils.py                       # Shared: _with_retry, credentials, reddit init
-├── drive_upload.py                # Optional Google Drive log upload helper
-├── requirements.txt               # CLI/CI deps: praw, google-api-python-client
+├── requirements.txt               # CLI/CI deps: praw
 ├── web/
 │   ├── app.py                     # Flask web application (CSRF-protected)
-│   ├── requirements.txt           # flask, flask-wtf, praw, google-api-*
+│   ├── requirements.txt           # flask, flask-wtf, praw
 │   └── templates/
 │       ├── index.html             # Login page
 │       └── dashboard.html         # Main dashboard UI
@@ -39,8 +38,6 @@ RedditCommentCleaner/
 │       ├── api/                   # RedditApiClient, RedditApiService
 │       ├── dashboard/             # DashboardActivity, DashboardViewModel
 │       └── util/                  # TokenStorage, PkceHelper
-├── scripts/
-│   └── backfill_drive_upload.py   # Upload all historical GitHub Actions artifacts to Drive
 ├── tests/
 │   └── requirements.txt           # pytest, pytest-mock, flask, praw
 ├── .github/
@@ -66,12 +63,12 @@ RedditCommentCleaner/
 
 ### CLI scripts (`commentCleaner.py`, `PostCleaner.py`, `weekly_cleanup.py`)
 ```bash
-pip install -r requirements.txt   # praw + google-api-python-client (Drive is optional)
+pip install -r requirements.txt   # praw
 ```
 
 ### Web app (`web/`)
 ```bash
-pip install -r web/requirements.txt   # flask, flask-wtf, praw, google-api-*
+pip install -r web/requirements.txt   # flask, flask-wtf, praw
 ```
 
 ### Tests
@@ -95,7 +92,7 @@ No `pyproject.toml`, Poetry, or Pipenv files exist.
 | `initialize_reddit(...)` | Creates and verifies a PRAW Reddit instance; catches `OAuthException` and `ResponseException` in addition to `APIException` |
 | `get_days_old(prompt)` | Prompts for an integer age threshold |
 
-`web/app.py` adds `BASE_DIR` to `sys.path` before importing `utils` (the same mechanism used for `drive_upload`).
+`web/app.py` adds `BASE_DIR` to `sys.path` before importing `utils`.
 
 ---
 
@@ -155,14 +152,6 @@ Supports `--dry-run` flag.
 Non-interactive script designed for CI. Reads credentials from environment variables and deletes all comments **and** posts with `score < 1` or `score == 1` AND older than 14 days. Logs each deleted item to `deleted_comments.txt` / `deleted_posts.txt`.
 
 Supports `--dry-run` flag (or `DRY_RUN=1` env var).
-
-### `scripts/backfill_drive_upload.py`
-
-One-off utility that downloads every historical `deletion-logs-*` artifact from the GitHub Actions workflow and uploads them to Google Drive with dated filenames. Requires the `gh` CLI authenticated and the `GOOGLE_SERVICE_ACCOUNT_KEY` / `GOOGLE_DRIVE_FOLDER_ID` env vars.
-
-```bash
-python scripts/backfill_drive_upload.py
-```
 
 ---
 

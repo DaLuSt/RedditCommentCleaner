@@ -11,17 +11,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-drive = [
-    "google-api-python-client>=2.0,<3",
-    "google-auth>=2.0,<3",
-    "google-auth-httplib2>=0.1,<1",
-]
 web = [
     "flask>=2.3,<4",
     "flask-wtf>=1.1,<2",
-    "google-api-python-client>=2.0,<3",
-    "google-auth>=2.0,<3",
-    "google-auth-httplib2>=0.1,<1",
 ]
 dev = [
     "pytest>=7.0,<9",
