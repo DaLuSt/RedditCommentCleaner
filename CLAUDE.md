@@ -21,7 +21,7 @@ It ships in four forms:
 ```
 RedditCommentCleaner/
 ├── pyproject.toml                 # Package metadata, dependencies, console-script entry points
-├── ruff.toml                      # Lint config (E, F, W; line length unenforced)
+├── ruff.toml                      # Lint config (E, F, W, I, UP, B; line length unenforced)
 ├── src/
 │   └── redditcleaner/
 │       ├── __init__.py            # __version__
@@ -280,7 +280,7 @@ ruff check .
 ## Development Conventions
 
 - **Python version:** `>=3.9` (see `pyproject.toml`); standard library uses `datetime`, `time`, `os`
-- **Style:** `ruff` (see `ruff.toml`) for lint (`E`, `F`, `W`; line length unenforced). Google-style docstrings (`Args:`, `Returns:`, `Notes:`).
+- **Style:** `ruff` (see `ruff.toml`) for lint (`E`, `F`, `W`, `I` import sorting, `UP` pyupgrade, `B` bugbear; line length unenforced). Google-style docstrings (`Args:`, `Returns:`, `Notes:`).
 - **Test suite:** `tests/` — run with `pytest` (config in `pyproject.toml`'s `[tool.pytest.ini_options]`). Uses `pytest-mock` / `unittest.mock` to mock PRAW objects.
 - **CI/CD:** `ci.yml` (test + lint on every push/PR to `main`) and `weekly-cleanup.yml` (scheduled cleanup run).
 - **Error handling:** Auth failures catch `praw.exceptions.APIException`, `prawcore.exceptions.OAuthException`, and `prawcore.exceptions.ResponseException`. Rate limits retry via `_with_retry()`. Auth failure calls `exit()` in CLI scripts; returns HTTP 401 in the web app.

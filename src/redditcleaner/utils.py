@@ -33,7 +33,7 @@ def get_reddit_credentials(credentials_file="Credentials.txt"):
         tuple: (client_id, client_secret, username, password)
     """
     try:
-        with open(credentials_file, "r") as f:
+        with open(credentials_file, encoding="utf-8") as f:
             client_id = f.readline().strip()
             client_secret = f.readline().strip()
             username = f.readline().strip()
