@@ -1,4 +1,4 @@
-# RedditCommentCleaner v1.8
+# RedditCommentCleaner v1.8.0
 
 Bulk-delete your Reddit comments and posts. Each item is edited to `"."` before deletion to prevent content-scraping tools from capturing the original text.
 
@@ -6,7 +6,7 @@ Available in four forms:
 
 | Mode | Description |
 |------|-------------|
-| **CLI** | Interactive terminal scripts (`commentCleaner.py`, `PostCleaner.py`) |
+| **CLI** | Interactive terminal scripts (`redditcleaner.cli.comment_cleaner`, `redditcleaner.cli.post_cleaner`) |
 | **Web app** | Browser dashboard — filter, select, and delete items visually |
 | **Android** | Native Kotlin app with OAuth PKCE flow (`android/`) |
 | **CI/CD** | Automated weekly GitHub Actions run (score < 1, or score == 1 + older than 14 days) |
@@ -15,9 +15,15 @@ Available in four forms:
 
 ## Requirements
 
-- Python 3
-- `praw` (CLI / CI):  `pip install praw`
-- `flask` + `praw` (web app):  `pip install -r web/requirements.txt`
+- Python 3.9+
+
+```bash
+pip install -e .            # CLI + CI only (praw)
+pip install -e ".[web]"     # + Flask web app (flask, flask-wtf)
+pip install -e ".[dev]"     # + test/lint tooling (pytest, pytest-mock, ruff, flask, flask-wtf)
+```
+
+This registers three console scripts: `reddit-clean-comments`, `reddit-clean-posts`, `reddit-weekly-cleanup`. Each module is also runnable directly with `python -m`.
 
 ---
 
@@ -37,17 +43,18 @@ Available in four forms:
 Both scripts accept a `--dry-run` flag to preview which items would be deleted without making any changes:
 
 ```bash
-python commentCleaner.py --dry-run
-python PostCleaner.py --dry-run
+python -m redditcleaner.cli.comment_cleaner --dry-run
+python -m redditcleaner.cli.post_cleaner --dry-run
 ```
 
-### `commentCleaner.py` — delete comments
+### `redditcleaner.cli.comment_cleaner` — delete comments
 
 ```bash
-python commentCleaner.py
+python -m redditcleaner.cli.comment_cleaner
+# or, after install: reddit-clean-comments
 ```
 
-If `Credentials.txt` is present in the same directory it is read automatically; otherwise you are prompted. The file must contain exactly four lines:
+If `Credentials.txt` is present in the current directory it is read automatically; otherwise you are prompted. The file must contain exactly four lines:
 
 ```
 <client_id>
@@ -64,14 +71,15 @@ If `Credentials.txt` is present in the same directory it is read automatically; 
 | 2 | All comments with score ≤ 0 |
 | 3 | Score ≤ 1, no replies, older than 7 days |
 
-Each deleted comment is appended to `deleted_comments.txt` (`YYYY-MM-DD HH:MM:SS | score | body`).
+Each deleted comment is appended to `deleted_comments.txt` as a JSON line.
 
 ---
 
-### `PostCleaner.py` — delete posts
+### `redditcleaner.cli.post_cleaner` — delete posts
 
 ```bash
-python PostCleaner.py
+python -m redditcleaner.cli.post_cleaner
+# or, after install: reddit-clean-posts
 ```
 
 Same credential handling as above. Prompts for an age threshold and deletes all posts older than that many days. Logs to `deleted_posts.txt`.
@@ -81,8 +89,8 @@ Same credential handling as above. Prompts for an age threshold and deletes all 
 ## Web app
 
 ```bash
-pip install -r web/requirements.txt
-python web/app.py
+pip install -e ".[web]"
+python -m redditcleaner.web.app
 # Open http://localhost:5000
 ```
 
@@ -91,7 +99,7 @@ python web/app.py
 3. Use the **filter panel** (score ≤ N, age ≥ N days) or tick items manually
 4. Click **Delete Selected** — deleted rows disappear from the table in-place
 
-Logs are written to `deleted_comments.txt` / `deleted_posts.txt` in the repo root.
+Logs are written to `deleted_comments.txt` / `deleted_posts.txt` in the current working directory (or `LOG_DIR`, if set).
 
 ---
 
@@ -131,10 +139,11 @@ Add these secrets in **Settings → Secrets and variables → Actions**:
 
 ### Running locally
 
-`weekly_cleanup.py` also reads from `Credentials.txt` as a fallback when env vars are absent, so you can run it locally the same way as the other CLI scripts:
+`weekly_cleanup` also reads from `Credentials.txt` as a fallback when env vars are absent, so you can run it locally the same way as the other CLI scripts:
 
 ```bash
-python weekly_cleanup.py
+python -m redditcleaner.ci.weekly_cleanup
+# or, after install: reddit-weekly-cleanup
 ```
 
 ---
@@ -147,3 +156,15 @@ python weekly_cleanup.py
 | `deleted_posts.txt` | all scripts | JSON lines — one object per deleted post |
 
 Both files are excluded from git (`.gitignore`) and uploaded as GitHub Actions artifacts (retained 90 days).
+
+---
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest tests/       # test suite
+ruff check .         # lint
+```
+
+`.github/workflows/ci.yml` runs both on every push and pull request to `main`.
