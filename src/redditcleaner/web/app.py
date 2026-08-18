@@ -7,7 +7,7 @@ import prawcore
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_wtf.csrf import CSRFProtect
 
-from redditcleaner.utils import _with_retry
+from redditcleaner.utils import build_deletion_record, edit_and_delete
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.urandom(24)
@@ -136,22 +136,8 @@ def api_delete():
         for cid in comment_ids:
             try:
                 comment = reddit.comment(cid)
-                cf.write(
-                    json.dumps({
-                        "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "created_at": datetime.fromtimestamp(
-                            comment.created_utc, tz=timezone.utc
-                        ).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "id": comment.name,
-                        "subreddit": str(comment.subreddit),
-                        "score": comment.score,
-                        "permalink": f"https://reddit.com{comment.permalink}",
-                        "body": comment.body,
-                        "source": "web",
-                    }) + "\n"
-                )
-                _with_retry(lambda: comment.edit("."), "comment edit")
-                _with_retry(comment.delete, "comment delete")
+                cf.write(json.dumps(build_deletion_record(comment, "comment", "web")) + "\n")
+                edit_and_delete(comment, "comment")
                 deleted_comments += 1
             except (
                 praw.exceptions.APIException,
@@ -163,23 +149,8 @@ def api_delete():
         for pid in post_ids:
             try:
                 submission = reddit.submission(pid)
-                pf.write(
-                    json.dumps({
-                        "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "created_at": datetime.fromtimestamp(
-                            submission.created_utc, tz=timezone.utc
-                        ).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "id": submission.name,
-                        "subreddit": submission.subreddit.display_name,
-                        "score": submission.score,
-                        "title": submission.title,
-                        "permalink": f"https://reddit.com{submission.permalink}",
-                        "num_comments": submission.num_comments,
-                        "source": "web",
-                    }) + "\n"
-                )
-                _with_retry(lambda: submission.edit("."), "post edit")
-                _with_retry(submission.delete, "post delete")
+                pf.write(json.dumps(build_deletion_record(submission, "post", "web")) + "\n")
+                edit_and_delete(submission, "post")
                 deleted_posts += 1
             except (
                 praw.exceptions.APIException,

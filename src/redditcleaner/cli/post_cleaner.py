@@ -1,14 +1,14 @@
 import argparse
 import json
 import time
-from datetime import datetime, timezone
 
 import praw
 import prawcore
 
 from redditcleaner.utils import (
-    _with_retry,
+    build_deletion_record,
     confirm_and_run,
+    edit_and_delete,
     get_days_old,
     get_reddit_credentials,
     initialize_reddit,
@@ -48,24 +48,9 @@ def delete_old_posts(reddit, username, days_old, *, dry_run=False):
                 posts_deleted += 1
                 continue
 
-            log_file.write(
-                json.dumps({
-                    "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "created_at": datetime.fromtimestamp(
-                        submission.created_utc, tz=timezone.utc
-                    ).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "id": submission.name,
-                    "subreddit": submission.subreddit.display_name,
-                    "score": submission.score,
-                    "title": submission.title,
-                    "permalink": f"https://reddit.com{submission.permalink}",
-                    "num_comments": submission.num_comments,
-                    "source": "cli",
-                }) + "\n"
-            )
+            log_file.write(json.dumps(build_deletion_record(submission, "post", "cli")) + "\n")
             try:
-                _with_retry(lambda: submission.edit("."), "post edit")
-                _with_retry(submission.delete, "post delete")
+                edit_and_delete(submission, "post")
                 posts_deleted += 1
                 print(f"\n  Deleted post: {submission.title}")
             except (praw.exceptions.APIException, prawcore.exceptions.TooManyRequests) as e:

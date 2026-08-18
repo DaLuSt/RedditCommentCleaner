@@ -1,6 +1,7 @@
 """Shared utilities for RedditCommentCleaner CLI scripts."""
 
 import time
+from datetime import datetime, timezone
 
 import praw
 import prawcore
@@ -89,6 +90,46 @@ def initialize_reddit(client_id, client_secret, username, password):
     ):
         print("Error: Could not authenticate with the provided credentials.")
         exit()
+
+
+def build_deletion_record(item, item_type, source):
+    """Serialize a deleted comment or submission into a JSON-loggable dict.
+
+    Args:
+        item: A PRAW Comment (item_type="comment") or Submission (item_type="post").
+        item_type (str): "comment" or "post".
+        source (str): Tag identifying which script/mode performed the deletion.
+
+    Returns:
+        dict: Ready to be passed to json.dumps().
+    """
+    record = {
+        "deleted_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "created_at": datetime.fromtimestamp(item.created_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "id": item.name,
+        "subreddit": str(item.subreddit),
+        "score": item.score,
+    }
+    if item_type == "post":
+        record["title"] = item.title
+        record["permalink"] = f"https://reddit.com{item.permalink}"
+        record["num_comments"] = item.num_comments
+    else:
+        record["permalink"] = f"https://reddit.com{item.permalink}"
+        record["body"] = item.body
+    record["source"] = source
+    return record
+
+
+def edit_and_delete(item, label):
+    """Edit *item* to "." then delete it, retrying on rate limits.
+
+    Args:
+        item: A PRAW Comment or Submission.
+        label (str): "comment" or "post" — used in retry log messages.
+    """
+    _with_retry(lambda: item.edit("."), f"{label} edit")
+    _with_retry(item.delete, f"{label} delete")
 
 
 def get_days_old(prompt="Enter how old (in days) the items should be: "):
