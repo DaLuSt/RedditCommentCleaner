@@ -21,7 +21,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
-        run: pip install -e ".[drive]"
+        run: pip install -e .
 
       - name: Run weekly cleanup (score < 1, or score == 1 and older than 14 days)
         env:
@@ -29,9 +29,6 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
-          # Optional — omit these two secrets to skip Drive upload
-          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
-          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
         run: python -m redditcleaner.ci.weekly_cleanup
 
       - name: Upload deletion logs as artifacts

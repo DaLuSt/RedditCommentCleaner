@@ -122,8 +122,7 @@ class TestApiDelete:
         mock_reddit = MagicMock()
         mock_reddit.comment.return_value = mock_comment
 
-        with patch("redditcleaner.web.app.praw.Reddit", return_value=mock_reddit), \
-             patch("redditcleaner.web.app.maybe_upload_logs", return_value=[]):
+        with patch("redditcleaner.web.app.praw.Reddit", return_value=mock_reddit):
             resp = authed_client.post("/api/delete", json={"comment_ids": ["abc"], "post_ids": []})
 
         assert resp.status_code == 200

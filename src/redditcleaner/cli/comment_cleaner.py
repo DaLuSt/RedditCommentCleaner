@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 import praw
 import prawcore
 
-from redditcleaner.drive_upload import maybe_upload_logs
 from redditcleaner.utils import (
     _with_retry,
     confirm_and_run,
@@ -248,8 +247,6 @@ def main():
         if comments_deleted:
             label = "would delete" if args.dry_run else "deleted"
             print(f"The script {label} {len(comments_deleted)} comment(s).")
-            if not args.dry_run:
-                maybe_upload_logs("deleted_comments.txt")
             comments_deleted = []
         else:
             print("There were no comments to delete.")

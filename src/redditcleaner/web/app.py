@@ -7,7 +7,6 @@ import prawcore
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_wtf.csrf import CSRFProtect
 
-from redditcleaner.drive_upload import maybe_upload_logs
 from redditcleaner.utils import _with_retry
 
 app = Flask(__name__)
@@ -188,13 +187,10 @@ def api_delete():
             ) as e:
                 errors.append(f"Post {pid}: {e}")
 
-    drive_links = maybe_upload_logs(DELETED_COMMENTS_FILE, DELETED_POSTS_FILE)
-
     return jsonify(
         deleted_comments=deleted_comments,
         deleted_posts=deleted_posts,
         errors=errors,
-        drive_links=drive_links,
     )
 
 
