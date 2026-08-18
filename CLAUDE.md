@@ -49,6 +49,7 @@ RedditCommentCleaner/
 │   └── test_weekly_cleanup.py
 ├── .github/
 │   └── workflows/
+│       ├── ci.yml                 # GitHub Actions — test + lint on push/PR to main
 │       └── weekly-cleanup.yml     # GitHub Actions — runs redditcleaner.ci.weekly_cleanup
 ├── .gitignore
 ├── README.md
@@ -212,9 +213,18 @@ Key characteristics:
 
 ---
 
-## GitHub Actions — Weekly Cleanup
+## GitHub Actions
 
-**File:** `.github/workflows/weekly-cleanup.yml`
+### CI (`.github/workflows/ci.yml`)
+
+Runs on every push and pull request to `main`. Two jobs:
+
+| Job | Runs |
+|---|---|
+| `test` | `pip install -e ".[dev]"` then `pytest tests/ -v` |
+| `lint` | `pip install ruff` then `ruff check .` |
+
+### Weekly Cleanup (`.github/workflows/weekly-cleanup.yml`)
 
 **Schedule:** Every Sunday at 00:00 UTC (`cron: '0 0 * * 0'`)
 
@@ -272,7 +282,7 @@ ruff check .
 - **Python version:** `>=3.9` (see `pyproject.toml`); standard library uses `datetime`, `time`, `os`
 - **Style:** `ruff` (see `ruff.toml`) for lint (`E`, `F`, `W`; line length unenforced). Google-style docstrings (`Args:`, `Returns:`, `Notes:`).
 - **Test suite:** `tests/` — run with `pytest` (config in `pyproject.toml`'s `[tool.pytest.ini_options]`). Uses `pytest-mock` / `unittest.mock` to mock PRAW objects.
-- **CI/CD:** GitHub Actions workflow (`weekly-cleanup.yml`). No other pipelines.
+- **CI/CD:** `ci.yml` (test + lint on every push/PR to `main`) and `weekly-cleanup.yml` (scheduled cleanup run).
 - **Error handling:** Auth failures catch `praw.exceptions.APIException`, `prawcore.exceptions.OAuthException`, and `prawcore.exceptions.ResponseException`. Rate limits retry via `_with_retry()`. Auth failure calls `exit()` in CLI scripts; returns HTTP 401 in the web app.
 - **Encoding:** File writes use `encoding="utf-8"` explicitly.
 - **Datetimes:** All timestamps use `datetime.now(timezone.utc)` and `datetime.fromtimestamp(..., tz=timezone.utc)` — never the deprecated `utcnow()` / `utcfromtimestamp()`.
