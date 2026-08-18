@@ -7,8 +7,11 @@ from unittest.mock import patch
 
 import pytest
 
-from redditcleaner.ci.weekly_cleanup import AGE_THRESHOLD_DAYS, _load_credentials, _should_delete
-
+from redditcleaner.ci.weekly_cleanup import (
+    AGE_THRESHOLD_DAYS,
+    _load_credentials,
+    _should_delete,
+)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
