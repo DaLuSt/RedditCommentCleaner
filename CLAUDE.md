@@ -45,6 +45,8 @@ RedditCommentCleaner/
 │       └── util/                  # TokenStorage, PkceHelper
 ├── tests/                         # pytest suite (mirrors src/ layout)
 │   ├── conftest.py
+│   ├── test_cli.py
+│   ├── test_utils.py
 │   ├── test_web_app.py
 │   └── test_weekly_cleanup.py
 ├── .github/
